@@ -45,6 +45,10 @@
     .ojh-pill{position:fixed;top:8px;left:8px;z-index:2147483646;background:#22c55e;color:#fff;font-size:11px;padding:3px 10px;border-radius:10px;font-family:ui-monospace,monospace;box-shadow:0 1px 3px rgba(0,0,0,.2);pointer-events:none}
     #ojh-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-10px);background:#0f172a;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;opacity:0;transition:.25s;z-index:2147483647;pointer-events:none}
     #ojh-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    #ojh-update-banner{display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(90deg,#f59e0b,#f97316);color:#fff;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
+    #ojh-update-banner:hover{filter:brightness(1.07)}
+    #ojh-update-banner .ojh-up-link{text-decoration:underline;white-space:nowrap}
+    #ojh-fab .ojh-dot{position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#ef4444;border:2px solid #fff;border-radius:50%;pointer-events:none}
   `;
   (document.head||document.documentElement).appendChild(style);
 
@@ -93,6 +97,25 @@
 
   const toast = document.createElement('div'); toast.id = 'ojh-toast';
   document.documentElement.appendChild(toast);
+
+  // ===== 新版本检查：有更新时 OJ 按钮加红点 + 面板顶部显示横幅 =====
+  (function checkUpdate(){
+    if(!chrome.runtime||!chrome.runtime.sendMessage) return;
+    try{
+      chrome.runtime.sendMessage({type:'OJ_UPDATE_INFO'}, r=>{
+        const le=chrome.runtime.lastError; if(le||!r||!r.ok||!r.info||!r.info.hasUpdate) return;
+        const info=r.info;
+        if(!fab.querySelector('.ojh-dot')){const dot=document.createElement('span');dot.className='ojh-dot';fab.appendChild(dot)}
+        fab.title='发现新版本 v'+info.latest+'，点击查看';
+        if(drawer.querySelector('#ojh-update-banner')) return;
+        const b=document.createElement('div');
+        b.id='ojh-update-banner';
+        b.innerHTML='<span>🎉 新版本 v'+esc(info.latest)+' 已发布（当前 v'+esc(info.local)+'）</span><span class="ojh-up-link">去更新 →</span>';
+        b.onclick=()=>window.open(info.url,'_blank');
+        drawer.insertBefore(b,drawer.firstChild);
+      });
+    }catch(_){}
+  })();
 
   function showToast(m){toast.textContent=m;toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),2200)}
   function copyText(t){return new Promise(r=>{navigator.clipboard.writeText(t).then(()=>{showToast('已复制');r(true)}).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');showToast('已复制');r(true)}catch(_){showToast('复制失败');r(false)}document.body.removeChild(a)})})}

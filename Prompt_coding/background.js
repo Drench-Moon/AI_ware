@@ -13,7 +13,47 @@ chrome.runtime.onInstalled.addListener(async () => {
   const cfg = await chrome.storage.local.get();
   const merged = Object.assign({}, DEFAULT_CONFIG, cfg);
   await chrome.storage.local.set(merged);
+  chrome.alarms.create('ojh_update', { periodInMinutes: 720 });
+  checkForUpdate();
 });
+
+/* ===== 新版本检查（对比 GitHub 仓库里的 manifest.json）===== */
+const UPDATE_KEY = 'ojh_update_info';
+const REMOTE_MANIFEST = 'https://raw.githubusercontent.com/Drench-Moon/AI_ware/main/Prompt_coding/manifest.json';
+const RELEASE_URL = 'https://github.com/Drench-Moon/AI_ware';
+
+function cmpVer(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+
+async function checkForUpdate() {
+  try {
+    const resp = await fetch(REMOTE_MANIFEST + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const remote = await resp.json();
+    const local = chrome.runtime.getManifest().version;
+    const info = {
+      local,
+      latest: remote.version || local,
+      hasUpdate: cmpVer(remote.version || local, local) > 0,
+      url: RELEASE_URL,
+      checkedAt: Date.now(),
+    };
+    await chrome.storage.local.set({ [UPDATE_KEY]: info });
+    return info;
+  } catch (_) {
+    return null; // 访问不了 GitHub（如校园网无代理）时静默失败
+  }
+}
+
+chrome.runtime.onStartup.addListener(() => { checkForUpdate(); });
+chrome.alarms.onAlarm.addListener(a => { if (a.name === 'ojh_update') checkForUpdate(); });
 
 function buildEndpoint(baseUrl) {
   let s = (baseUrl || '').trim();
@@ -112,6 +152,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const prompt = buildPrompt(msg.payload, cfg);
         const answer = await callModel(cfg, prompt);
         sendResponse({ ok: true, answer });
+      } else if (msg.type === 'OJ_UPDATE_INFO') {
+        const fresh = await checkForUpdate();
+        if (fresh) { sendResponse({ ok: true, info: fresh }); return; }
+        const stored = (await chrome.storage.local.get(UPDATE_KEY))[UPDATE_KEY];
+        sendResponse({ ok: true, info: stored || null });
       } else if (msg.type === 'OJ_TEST') {
         const answer = await callModel(cfg, (msg.payload && msg.payload.prompt) || '只回复ok');
         sendResponse({ ok: true, answer });

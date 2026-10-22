@@ -55,6 +55,22 @@ $('save').addEventListener('click', async () => {
   setStatus('✅ 已保存配置', true);
 });
 
+// 版本显示 + 更新提示
+(async () => {
+  try {
+    document.querySelector('.head p').textContent += ' · v' + chrome.runtime.getManifest().version;
+    const r = await chrome.runtime.sendMessage({ type: 'OJ_UPDATE_INFO' });
+    if (r && r.ok && r.info && r.info.hasUpdate) {
+      const s = $('status');
+      s.textContent = '🎉 发现新版本 v' + r.info.latest + '，点这里去更新';
+      s.className = 'status ok';
+      s.style.cursor = 'pointer';
+      s.style.textDecoration = 'underline';
+      s.onclick = () => window.open(r.info.url, '_blank');
+    }
+  } catch (_) {}
+})();
+
 // 测试连通性
 $('test').addEventListener('click', async () => {
   setStatus('⏳ 测试中...', false);
