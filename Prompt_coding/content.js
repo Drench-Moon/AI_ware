@@ -8,7 +8,7 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui}
+    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
     #ojh-fab:hover{transform:scale(1.06)}
     #ojh-drawer{position:fixed;top:0;left:0;width:min(480px,90vw);height:100vh;z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:320px;min-height:300px}
     #ojh-drawer.ojh-open{transform:translate3d(var(--ojh-x,0),var(--ojh-y,0),0) !important;transition:none}
@@ -286,8 +286,24 @@ int main(){
   $('#ojh-save').onclick=async ()=>{const t=answer.value.trim();if(t.length<30){showToast('回答太短');return}if(!window.__ojhCur){showToast('先生成 Prompt');return}const h=loadH();h.unshift({id:Date.now().toString(36),time:Date.now(),...window.__ojhCur,result:t});while(h.length>MAX_HISTORY)h.pop();saveH(h);result.innerHTML=renderMd(t);showToast('已保存并渲染');renderHist()};
   $('#ojh-skip').onclick=()=>{answer.value='';hint.style.display='none';showToast('已跳过')};
   $('#ojh-close').onclick=()=>drawer.classList.remove('ojh-open');
-  fab.ondblclick=()=>{drawer.style.removeProperty('--ojh-x');drawer.style.removeProperty('--ojh-y');drawer.style.removeProperty('--ojh-miny');drawer.classList.remove('ojh-minimized','ojh-open');savePos({});showToast('已重置位置')};
-  fab.onclick=()=>{const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){refetch()} else {applyOpen(); refetch()}};
+  const storage={get:async k=>{try{return(await chrome.storage.local.get(k))[k]}catch(_){return null}},set:async(k,v)=>{try{await chrome.storage.local.set({[k]:v})}catch(_){}}};
+  fab.ondblclick=()=>{drawer.style.removeProperty('--ojh-x');drawer.style.removeProperty('--ojh-y');drawer.style.removeProperty('--ojh-miny');drawer.classList.remove('ojh-minimized','ojh-open');savePos({});fab.style.removeProperty('left');fab.style.removeProperty('top');fab.style.removeProperty('bottom');storage.set(FAB_POS_KEY,null).catch(()=>{});showToast('已重置位置')};
+  fab.onclick=()=>{if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){refetch()} else {applyOpen(); refetch()}};
+  // ===== OJ 按钮可拖动（位置自动保存，双击按钮复位）=====
+  const FAB_POS_KEY='ojh_fab_pos_v1';
+  storage.get(FAB_POS_KEY).then(p=>{if(p&&typeof p.x==='number'){fab.style.left=p.x+'px';fab.style.top=p.y+'px';fab.style.bottom='auto'}}).catch(()=>{});
+  let fabDrag=null,fabMoved=false;
+  fab.addEventListener('pointerdown',e=>{fabDrag={mx:e.clientX,my:e.clientY,x:fab.getBoundingClientRect().left,y:fab.getBoundingClientRect().top};fab.setPointerCapture(e.pointerId)});
+  fab.addEventListener('pointermove',e=>{
+    if(!fabDrag)return;
+    const dx=e.clientX-fabDrag.mx,dy=e.clientY-fabDrag.my;
+    if(!fabMoved&&Math.abs(dx)+Math.abs(dy)<6)return;
+    fabMoved=true;
+    const x=Math.max(0,Math.min(window.innerWidth-fab.offsetWidth,fabDrag.x+dx));
+    const y=Math.max(0,Math.min(window.innerHeight-fab.offsetHeight,fabDrag.y+dy));
+    fab.style.left=x+'px';fab.style.top=y+'px';fab.style.bottom='auto';
+  });
+  fab.addEventListener('pointerup',()=>{if(fabDrag&&fabMoved)storage.set(FAB_POS_KEY,{x:parseFloat(fab.style.left)||0,y:parseFloat(fab.style.top)||0}).catch(()=>{});fabDrag=null});
   drawer.querySelectorAll('.ojh-tab').forEach(t=>{t.onclick=()=>{drawer.querySelectorAll('.ojh-tab').forEach(x=>x.classList.remove('active'));drawer.querySelectorAll('.ojh-pane').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#ojh-pane-'+t.dataset.pane).classList.add('active');if(t.dataset.pane==='hist')renderHist()}});
   $('#ojh-hq').oninput=renderHist;
   $('#ojh-ch').onclick=async ()=>{if(confirm('清空全部历史？')){await chrome.storage.local.remove(HISTORY_KEY);renderHist()}};
