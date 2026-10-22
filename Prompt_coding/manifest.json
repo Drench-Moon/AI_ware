@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "OJ 助手 · 算法生成器",
+  "version": "1.2.0",
+  "description": "程天学/力扣/洛谷/Codeforces/蓝桥/PTA/牛客/AcWing/AtCoder/VJudge 自动抓题+AI 生成",
+  "permissions": ["storage", "scripting", "activeTab"],
+  "host_permissions": [
+    "https://acm.tju.edu.cn/*",
+    "http://acm.tju.edu.cn/*",
+    "https://leetcode.cn/*",
+    "https://leetcode.com/*",
+    "https://www.luogu.com.cn/*",
+    "https://www.luogu.com/*",
+    "https://www.codeforces.com/*",
+    "https://codeforces.com/*",
+    "https://codeforces.ml/*",
+    "https://www.lanqiao.cn/*",
+    "https://pintia.cn/*",
+    "https://pta.cn/*",
+    "https://ac.nowcoder.com/*",
+    "https://www.nowcoder.com/*",
+    "https://www.acwing.com/*",
+    "https://atcoder.jp/*",
+    "https://vjudge.net/*",
+    "https://api.deepseek.com/*",
+    "https://api.siliconflow.cn/*",
+    "https://api.moonshot.cn/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://ark.cn-beijing.volces.com/*",
+    "https://api.zhipuai.cn/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://acm.tju.edu.cn/*",
+        "http://acm.tju.edu.cn/*",
+        "https://leetcode.cn/*",
+        "https://leetcode.com/*",
+        "https://www.luogu.com.cn/*",
+        "https://www.luogu.com/*",
+        "https://www.codeforces.com/*",
+        "https://codeforces.com/*",
+        "https://codeforces.ml/*",
+        "https://www.lanqiao.cn/*",
+        "https://pintia.cn/*",
+        "https://pta.cn/*",
+        "https://ac.nowcoder.com/*",
+        "https://www.nowcoder.com/*",
+        "https://www.acwing.com/*",
+        "https://atcoder.jp/*",
+        "https://vjudge.net/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OJ 助手"
+  }
+}
