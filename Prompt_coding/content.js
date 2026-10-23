@@ -419,7 +419,7 @@ int main(){
   chrome.storage.onChanged.addListener((ch,area)=>{if(area==='local'&&ch[SETTINGS_KEY]&&ch[SETTINGS_KEY].newValue){settings=Object.assign(settings,ch[SETTINGS_KEY].newValue);applySettings();applyTheme()}});
   window.addEventListener('resize',()=>{if(!settings.visible)return;const r=fab.getBoundingClientRect();if(r.right>window.innerWidth||r.bottom>window.innerHeight||r.left<0||r.top<0){fab.style.left=Math.max(0,Math.min(window.innerWidth-56,r.left))+'px';fab.style.top=Math.max(0,Math.min(window.innerHeight-56,r.top))+'px';fab.style.bottom='auto'}});
   fab.ondblclick=e=>{if(!e.shiftKey){showToast('按住 Shift 再双击才能复位');return}resetFab()};
-  fab.onclick=e=>{if(e.shiftKey)return;if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){refetch()} else {applyOpen(); refetch()} checkUpdate()};
+  fab.onclick=e=>{if(e.shiftKey)return;if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){drawer.classList.remove('ojh-open')} else {applyOpen(); refetch(); checkUpdate()}};
   // ===== OJ 按钮可拖动（位置自动保存，Shift+双击复位）=====
   const FAB_POS_KEY='ojh_fab_pos_v1';
   storage.get(FAB_POS_KEY).then(p=>{if(p&&typeof p.x==='number'&&isFinite(p.x)){const x=Math.max(0,Math.min(window.innerWidth-56,p.x));const y=Math.max(0,Math.min(window.innerHeight-56,p.y));fab.style.left=x+'px';fab.style.top=y+'px';fab.style.bottom='auto'}}).catch(()=>{});
