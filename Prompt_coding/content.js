@@ -397,7 +397,7 @@ int main(){
   const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
   let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},resetHotkey:null,theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
-  function hkTextOf(hk){return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
+  function hkTextOf(hk){const names={dbl0:'双击左键',ctx2:'右键'};const k=names[hk.key]||hk.key.toUpperCase();return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+k}
   function hkText(){return hkTextOf(settings.hotkey)}
   function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
   function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
@@ -405,7 +405,7 @@ int main(){
   function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键可再次隐藏':'悬浮球已隐藏，'+hkText()+' 仍可用；到扩展弹窗里可重新开启')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
   let hkDialog=null,hkCapture=null;
-  function cancelHkCapture(){if(hkCapture){document.removeEventListener('keydown',hkCapture,true);hkCapture=null}}
+  function cancelHkCapture(){if(hkCapture){document.removeEventListener('keydown',hkCapture.kd,true);document.removeEventListener('mousedown',hkCapture.md,true);hkCapture=null}}
   function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
   function hkLabel(field){return field==='hotkey'?hkTextOf(settings.hotkey):(settings.resetHotkey?hkTextOf(settings.resetHotkey):'Shift+双击悬浮球')}
   function startHkCapture(field,btn){
@@ -414,23 +414,46 @@ int main(){
     const oldText=lab.textContent;
     lab.classList.remove('ojh-hkerr');
     lab.classList.add('ojh-capturing');
-    lab.textContent='⌨ 请按下新组合键…（Esc 取消）';
-    const done=()=>{document.removeEventListener('keydown',h,true);hkCapture=null};
-    const h=e=>{
+    lab.textContent=field==='resetHotkey'?'⌨ 按键盘组合，或按住 Shift/Ctrl/Alt 后点鼠标左/右键…（Esc 取消）':'⌨ 请按下新组合键…（Esc 取消）';
+    const done=()=>{document.removeEventListener('keydown',kd,true);document.removeEventListener('mousedown',md,true);hkCapture=null};
+    const apply=(hk,desc)=>{settings[field]=hk;saveSettings();done();lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=desc;if(field==='hotkey')fab.title='OJ 助手 ('+hkText()+')'};
+    const kd=e=>{
+      if(e.target&&e.target.closest&&e.target.closest('textarea,input'))return;
       e.preventDefault();e.stopPropagation();
       if(e.key==='Escape'){done();lab.classList.remove('ojh-capturing');lab.textContent=oldText;return}
       const k=e.key.toLowerCase();
       if(['control','alt','shift','meta'].includes(k))return;
-      if(!(e.ctrlKey||e.altKey)){lab.classList.add('ojh-hkerr');lab.textContent='⚠ 必须包含 Ctrl 或 Alt，请再按一次或 Esc 取消';return}
-      settings[field]={alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:k};
-      saveSettings();
-      done();
-      lab.classList.remove('ojh-capturing','ojh-hkerr');
-      lab.textContent=hkLabel(field);
-      if(field==='hotkey')fab.title='OJ 助手 ('+hkText()+')';
+      if(!(e.ctrlKey||e.altKey||e.shiftKey)){lab.classList.add('ojh-hkerr');lab.textContent='⚠ 纯字母/数字键在打字时会误触发，请至少带上 Ctrl/Alt/Shift';return}
+      const hk={alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:k};
+      apply(hk,hkTextOf(hk));
     };
-    hkCapture=h;
-    setTimeout(()=>document.addEventListener('keydown',h,true),50);
+    const md=e=>{
+      if(hkDialog&&hkDialog.contains(e.target))return;
+      if(!(e.button===0||e.button===2))return;
+      e.preventDefault();e.stopPropagation();
+      if(field==='hotkey'){lab.classList.add('ojh-hkerr');lab.textContent='⚠ 生成快捷键请用键盘组合';return}
+      if(!(e.ctrlKey||e.altKey||e.shiftKey)){lab.classList.add('ojh-hkerr');lab.textContent='⚠ 裸鼠标键太容易误触，请按住 Shift/Ctrl/Alt 之一再点';return}
+      const hk={alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:e.button===0?'dbl0':'ctx2'};
+      apply(hk,hkTextOf(hk)+(e.button===0?'（双击左键触发）':''));
+    };
+    hkCapture={kd,md};
+    setTimeout(()=>{document.addEventListener('keydown',kd,true);document.addEventListener('mousedown',md,true)},50);
+  }
+  // 弹窗定位：优先放在悬浮球旁边，绝不遮挡悬浮球
+  function placeDialog(dlg){
+    const fr=fab.getBoundingClientRect();
+    const w=dlg.offsetWidth,h=dlg.offsetHeight;
+    let x=fr.right+20;
+    if(x+w>window.innerWidth-8)x=Math.max(8,fr.left-w-20);
+    if(x+w>window.innerWidth-8)x=Math.max(8,(window.innerWidth-w)/2);
+    let y=Math.max(8,Math.min(fr.top,window.innerHeight-h-8));
+    dlg.style.left=x+'px';dlg.style.top=y+'px';
+    const dr=dlg.getBoundingClientRect();
+    if(!(dr.right<fr.left||dr.left>fr.right||dr.bottom<fr.top||dr.top>fr.bottom)){
+      let yy=fr.bottom+12;
+      if(yy+h>window.innerHeight-8)yy=Math.max(8,fr.top-h-12);
+      dlg.style.top=yy+'px';
+    }
   }
   function openHkDialog(){
     closeMenu();closeHkDialog();
@@ -440,10 +463,9 @@ int main(){
       <div class="ojh-hkhd"><span>⌨ 快捷键设置</span><span class="ojh-hkclose" id="ojh-hkclose">✕</span></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('hotkey')}</div><div class="ojh-hkd">按此键直接抓取当前题目并生成解答</div></div><button class="ojh-hkbtn" data-f="hotkey">修改</button></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><button class="ojh-hkbtn" data-f="resetHotkey">修改</button></div>
-      <div class="ojh-hktip">点「修改」后直接按下新组合键（需包含 Ctrl 或 Alt），设置过程中本窗口保持打开。</div>`;
+      <div class="ojh-hktip">点「修改」后：按键盘组合（需含 Ctrl/Alt/Shift 至少一个），或按住 Shift/Ctrl/Alt 后点鼠标左/右键。设置过程中本窗口保持打开。</div>`;
     document.documentElement.appendChild(hkDialog);
-    hkDialog.style.left=Math.max(8,(window.innerWidth-hkDialog.offsetWidth)/2)+'px';
-    hkDialog.style.top=Math.max(8,Math.min(window.innerHeight*0.28,window.innerHeight-hkDialog.offsetHeight-8))+'px';
+    placeDialog(hkDialog);
     hkDialog.querySelector('#ojh-hkclose').onclick=closeHkDialog;
     hkDialog.querySelectorAll('.ojh-hkbtn').forEach(btn=>btn.onclick=()=>startHkCapture(btn.dataset.f,btn));
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(hkDialog&&!hkDialog.contains(ev.target)){closeHkDialog();document.removeEventListener('pointerdown',h,true)}},true),0);
@@ -463,8 +485,7 @@ int main(){
         <div class="ojh-prefbtns"><button class="ojh-hkbtn" id="ojh-prefsave">保存偏好</button><button class="ojh-hkbtn" id="ojh-prefclear">清空恢复默认</button><span id="ojh-prefst" style="font-size:11px;color:#059669"></span></div>
       </div>`;
     document.documentElement.appendChild(prefDialog);
-    prefDialog.style.left=Math.max(8,(window.innerWidth-prefDialog.offsetWidth)/2)+'px';
-    prefDialog.style.top=Math.max(8,Math.min(window.innerHeight*0.28,window.innerHeight-prefDialog.offsetHeight-8))+'px';
+    placeDialog(prefDialog);
     prefDialog.querySelector('#ojh-preftext').value=settings.codePrefs||'';
     prefDialog.querySelector('#ojh-prefclose').onclick=closePrefDialog;
     prefDialog.querySelector('#ojh-prefsave').onclick=()=>{settings.codePrefs=prefDialog.querySelector('#ojh-preftext').value;saveSettings();prefDialog.querySelector('#ojh-prefst').textContent='✓ 已保存，下次生成生效';};
@@ -599,6 +620,10 @@ int main(){
   function combo(e,hk){const k=(e.key||'').toLowerCase();return k===hk.key&&e.altKey===!!hk.alt&&e.ctrlKey===!!hk.ctrl&&e.shiftKey===!!hk.shift}
   function matchHotkey(e){return combo(e,settings.hotkey)}
   document.addEventListener('keydown',e=>{if(settings.resetHotkey&&!e.repeat&&combo(e,settings.resetHotkey)){e.preventDefault();resetFab()}});
+  // 鼠标型复位键：双击左键 / 右键（排除悬浮球自身区域，避免与球上操作冲突）
+  const hkMouseHit=(e,hk)=>e.altKey===!!hk.alt&&e.ctrlKey===!!hk.ctrl&&e.shiftKey===!!hk.shift;
+  document.addEventListener('dblclick',e=>{const hk=settings.resetHotkey;if(!hk||hk.key!=='dbl0'||!hkMouseHit(e,hk))return;if(fab.contains(e.target)||(fabMenu&&fabMenu.contains(e.target)))return;e.preventDefault();resetFab()});
+  document.addEventListener('contextmenu',e=>{const hk=settings.resetHotkey;if(!hk||hk.key!=='ctx2'||!hkMouseHit(e,hk))return;if(fab.contains(e.target)||(fabMenu&&fabMenu.contains(e.target)))return;e.preventDefault();resetFab()});
   document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
 
