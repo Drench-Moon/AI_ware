@@ -99,8 +99,8 @@
   const toast = document.createElement('div'); toast.id = 'ojh-toast';
   document.documentElement.appendChild(toast);
 
-  // ===== 新版本检查：有更新时 OJ 按钮加红点 + 面板顶部显示横幅 =====
-  (function checkUpdate(){
+  // ===== 新版本检查：有更新时 OJ 按钮加红点 + 面板顶部显示横幅（注入时 + 每次打开面板时都会查）=====
+  function checkUpdate(){
     if(!chrome.runtime||!chrome.runtime.sendMessage) return;
     try{
       chrome.runtime.sendMessage({type:'OJ_UPDATE_INFO'}, r=>{
@@ -123,7 +123,8 @@
         drawer.insertBefore(b,drawer.firstChild);
       });
     }catch(_){}
-  })();
+  }
+  checkUpdate();
 
   function showToast(m){toast.textContent=m;toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),2200)}
   function copyText(t){return new Promise(r=>{navigator.clipboard.writeText(t).then(()=>{showToast('已复制');r(true)}).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');showToast('已复制');r(true)}catch(_){showToast('复制失败');r(false)}document.body.removeChild(a)})})}
@@ -326,7 +327,7 @@ int main(){
   $('#ojh-close').onclick=()=>drawer.classList.remove('ojh-open');
   const storage={get:async k=>{try{return(await chrome.storage.local.get(k))[k]}catch(_){return null}},set:async(k,v)=>{try{await chrome.storage.local.set({[k]:v})}catch(_){}}};
   fab.ondblclick=()=>{drawer.style.removeProperty('--ojh-x');drawer.style.removeProperty('--ojh-y');drawer.style.removeProperty('--ojh-miny');drawer.classList.remove('ojh-minimized','ojh-open');savePos({});fab.style.removeProperty('left');fab.style.removeProperty('top');fab.style.removeProperty('bottom');storage.set(FAB_POS_KEY,null).catch(()=>{});showToast('已重置位置')};
-  fab.onclick=()=>{if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){refetch()} else {applyOpen(); refetch()}};
+  fab.onclick=()=>{if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){refetch()} else {applyOpen(); refetch()} checkUpdate()};
   // ===== OJ 按钮可拖动（位置自动保存，双击按钮复位）=====
   const FAB_POS_KEY='ojh_fab_pos_v1';
   storage.get(FAB_POS_KEY).then(p=>{if(p&&typeof p.x==='number'){fab.style.left=p.x+'px';fab.style.top=p.y+'px';fab.style.bottom='auto'}}).catch(()=>{});
