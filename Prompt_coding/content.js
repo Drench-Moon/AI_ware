@@ -401,12 +401,12 @@ int main(){
   const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
   let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},resetHotkey:null,theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
-  function hkTextOf(hk){const pre=(hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'');if(hk.key==='tri0')return pre+(hk.count||3)+'连击左键';const names={dbl0:'双击左键',ctx2:'右键'};const k=names[hk.key]||hk.key.toUpperCase();return pre+k}
+  function hkTextOf(hk){const pre=(hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'');if(hk.key==='tri0')return pre+(hk.count||3)+'连击悬浮球';const names={dbl0:'双击悬浮球',ctx2:'右键悬浮球'};const k=names[hk.key]||hk.key.toUpperCase();return pre+k}
   function hkText(){return hkTextOf(settings.hotkey)}
   function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
   function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
   function applyTheme(){const t=THEMES[settings.theme]||THEMES.blue;document.documentElement.style.setProperty('--ojh-c1',t[0]);document.documentElement.style.setProperty('--ojh-c2',t[1])}
-  function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键可再次隐藏':'悬浮球已隐藏，'+hkText()+' 仍可用；到扩展弹窗里可重新开启')}
+  function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键球可再次隐藏':'悬浮球已隐藏，按 '+hkText()+' 会自动重新显示并打开面板')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
   let hkDialog=null,hkCapture=null;
   function cancelHkCapture(){if(hkCapture){document.removeEventListener('keydown',hkCapture.kd,true);document.removeEventListener('pointerdown',hkCapture.md,true);(hkCapture.BLKS||[]).forEach(t=>document.removeEventListener(t,hkCapture.blk,true));if(hkCapture.mBuf)clearTimeout(hkCapture.mBuf.timer);hkCapture=null}}
@@ -427,7 +427,11 @@ int main(){
       e.preventDefault();e.stopPropagation();
       if(e.key==='Escape'){done();lab.classList.remove('ojh-capturing');lab.textContent=oldText;return}
       const k=e.key.toLowerCase();
-      if(['control','alt','shift','meta'].includes(k))return;
+      if(['control','alt','shift','meta'].includes(k)){
+        const pre=(e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'');
+        lab.textContent=pre?'⌨ '+pre+'…（继续按主键）':'⌨ 按键盘组合；或按住 Shift/Ctrl/Alt 后点击悬浮球录入鼠标键…（Esc 取消）';
+        return;
+      }
       if(!(e.ctrlKey||e.altKey||e.shiftKey)){lab.classList.add('ojh-hkerr');lab.textContent='⚠ 纯字母/数字键在打字时会误触发，请至少带上 Ctrl/Alt/Shift';return}
       apply({alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:k},null);
       lab.textContent=hkLabel(field);
@@ -446,7 +450,7 @@ int main(){
       if(mBuf.btn!==e.button||mBuf.modStr!==modStr){clearTimeout(mBuf.timer);mBuf.btn=e.button;mBuf.mod=mod;mBuf.modStr=modStr;mBuf.n=1}
       else mBuf.n++;
       lab.classList.remove('ojh-hkerr');
-      lab.textContent='⌨ 已捕获 '+mBuf.n+' 次'+(e.button===0?'左键':'右键')+'（在悬浮球上），继续点击可累加，停止后自动确认…';
+      lab.textContent='⌨ 已捕获 '+mBuf.n+' 次'+(e.button===0?'左键':'右键')+'悬浮球，继续点击可累加，停止后自动确认…';
       clearTimeout(mBuf.timer);
       mBuf.timer=setTimeout(()=>{
         const key=mBuf.btn===0?(mBuf.n>=3?'tri0':'dbl0'):'ctx2';
@@ -658,7 +662,7 @@ int main(){
     if(!e.shiftKey){showToast('按住 Shift 再双击才能复位');return}
     resetFab();
   };
-  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
+  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){if(!settings.visible){settings.visible=true;applySettings();saveSettings()}e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
 
   const pill=document.createElement('div');pill.className='ojh-pill';pill.textContent='OJ 注入 OK';document.documentElement.appendChild(pill);setTimeout(()=>pill.remove(),3000);
