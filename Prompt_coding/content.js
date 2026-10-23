@@ -57,6 +57,18 @@
     .ojh-mrow{display:flex;gap:8px;padding:6px 10px 4px}
     .ojh-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
     .ojh-swatch.on{border-color:#0f172a}
+    #ojh-hkdialog{position:fixed;z-index:2147483647;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.22);width:310px;font-family:system-ui;font-size:13px;color:#0f172a;overflow:hidden}
+    .ojh-hkhd{background:linear-gradient(135deg,var(--ojh-c2,#1e40af),var(--ojh-c1,#2563eb));color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+    .ojh-hkclose{cursor:pointer;opacity:.85;font-weight:400;padding:2px 6px;border-radius:4px}
+    .ojh-hkclose:hover{opacity:1;background:rgba(255,255,255,.18)}
+    .ojh-hkrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #f1f5f9}
+    .ojh-hkl{font-weight:600;word-break:break-all}
+    .ojh-hkl.ojh-capturing{color:var(--ojh-c1,#2563eb);font-weight:500}
+    .ojh-hkl.ojh-hkerr{color:#dc2626;font-weight:500}
+    .ojh-hkd{font-size:11px;color:#94a3b8;margin-top:2px}
+    .ojh-hkbtn{padding:5px 14px;border-radius:6px;border:1px solid var(--ojh-c1,#2563eb);background:#fff;color:var(--ojh-c1,#2563eb);cursor:pointer;font-size:12px;flex-shrink:0}
+    .ojh-hkbtn:hover{background:var(--ojh-c1,#2563eb);color:#fff}
+    .ojh-hktip{font-size:11px;color:#94a3b8;padding:8px 14px 10px}
   `;
   (document.head||document.documentElement).appendChild(style);
 
@@ -379,20 +391,50 @@ int main(){
   function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
   function applyTheme(){const t=THEMES[settings.theme]||THEMES.blue;document.documentElement.style.setProperty('--ojh-c1',t[0]);document.documentElement.style.setProperty('--ojh-c2',t[1])}
   function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键可再次隐藏':'悬浮球已隐藏，'+hkText()+' 仍可用；到扩展弹窗里可重新开启')}
-  function startHotkeyCapture(field,label){
-    showToast('请按下新的'+label+'（需包含 Ctrl 或 Alt），按 Esc 取消');
+  // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
+  let hkDialog=null,hkCapture=null;
+  function cancelHkCapture(){if(hkCapture){document.removeEventListener('keydown',hkCapture,true);hkCapture=null}}
+  function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
+  function hkLabel(field){return field==='hotkey'?hkTextOf(settings.hotkey):(settings.resetHotkey?hkTextOf(settings.resetHotkey):'Shift+双击悬浮球')}
+  function startHkCapture(field,btn){
+    cancelHkCapture();
+    const lab=btn.closest('.ojh-hkrow').querySelector('.ojh-hkl');
+    const oldText=lab.textContent;
+    lab.classList.remove('ojh-hkerr');
+    lab.classList.add('ojh-capturing');
+    lab.textContent='⌨ 请按下新组合键…（Esc 取消）';
+    const done=()=>{document.removeEventListener('keydown',h,true);hkCapture=null};
     const h=e=>{
       e.preventDefault();e.stopPropagation();
-      if(e.key==='Escape'){document.removeEventListener('keydown',h,true);showToast('已取消');return}
+      if(e.key==='Escape'){done();lab.classList.remove('ojh-capturing');lab.textContent=oldText;return}
       const k=e.key.toLowerCase();
       if(['control','alt','shift','meta'].includes(k))return;
-      if(!(e.ctrlKey||e.altKey)){showToast('必须包含 Ctrl 或 Alt 修饰键');return}
+      if(!(e.ctrlKey||e.altKey)){lab.classList.add('ojh-hkerr');lab.textContent='⚠ 必须包含 Ctrl 或 Alt，请再按一次或 Esc 取消';return}
       settings[field]={alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:k};
       saveSettings();
-      document.removeEventListener('keydown',h,true);
-      showToast(label+'已设置为 '+hkTextOf(settings[field]));
+      done();
+      lab.classList.remove('ojh-capturing','ojh-hkerr');
+      lab.textContent=hkLabel(field);
+      if(field==='hotkey')fab.title='OJ 助手 ('+hkText()+')';
     };
+    hkCapture=h;
     setTimeout(()=>document.addEventListener('keydown',h,true),50);
+  }
+  function openHkDialog(){
+    closeMenu();closeHkDialog();
+    hkDialog=document.createElement('div');
+    hkDialog.id='ojh-hkdialog';
+    hkDialog.innerHTML=`
+      <div class="ojh-hkhd"><span>⌨ 快捷键设置</span><span class="ojh-hkclose" id="ojh-hkclose">✕</span></div>
+      <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('hotkey')}</div><div class="ojh-hkd">按此键直接抓取当前题目并生成解答</div></div><button class="ojh-hkbtn" data-f="hotkey">修改</button></div>
+      <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><button class="ojh-hkbtn" data-f="resetHotkey">修改</button></div>
+      <div class="ojh-hktip">点「修改」后直接按下新组合键（需包含 Ctrl 或 Alt），设置过程中本窗口保持打开。</div>`;
+    document.documentElement.appendChild(hkDialog);
+    hkDialog.style.left=Math.max(8,(window.innerWidth-hkDialog.offsetWidth)/2)+'px';
+    hkDialog.style.top=Math.max(8,Math.min(window.innerHeight*0.28,window.innerHeight-hkDialog.offsetHeight-8))+'px';
+    hkDialog.querySelector('#ojh-hkclose').onclick=closeHkDialog;
+    hkDialog.querySelectorAll('.ojh-hkbtn').forEach(btn=>btn.onclick=()=>startHkCapture(btn.dataset.f,btn));
+    setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(hkDialog&&!hkDialog.contains(ev.target)){closeHkDialog();document.removeEventListener('pointerdown',h,true)}},true),0);
   }
   function resetFab(){drawer.style.removeProperty('--ojh-x');drawer.style.removeProperty('--ojh-y');drawer.style.removeProperty('--ojh-miny');drawer.classList.remove('ojh-minimized','ojh-open');savePos({});fab.style.removeProperty('left');fab.style.removeProperty('top');fab.style.removeProperty('bottom');storage.set(FAB_POS_KEY,null).catch(()=>{});showToast('已重置位置')}
   let fabMenu=null;
@@ -403,19 +445,18 @@ int main(){
     fabMenu.id='ojh-menu';
     fabMenu.innerHTML=`
       <div class="ojh-mi" data-a="toggle">${settings.visible?'隐藏悬浮球':'显示悬浮球'}</div>
-      <div class="ojh-mi" data-a="hotkey">设置生成快捷键（当前 ${hkText()}）</div>
-      <div class="ojh-mi" data-a="reshotkey">设置复位快捷键（当前 ${settings.resetHotkey?hkTextOf(settings.resetHotkey):'Shift+双击'}）</div>
+      <div class="ojh-mi" data-a="hkset">⌨ 快捷键设置（生成 ${hkText()} / 复位 ${hkLabel('resetHotkey')}）</div>
       <div class="ojh-mi" data-a="reset">重置位置</div>
       <div class="ojh-msep">主题颜色</div>
       <div class="ojh-mrow">${Object.keys(THEMES).map(t=>`<span class="ojh-swatch${t===settings.theme?' on':''}" data-t="${t}" style="background:${THEMES[t][0]}" title="${t}"></span>`).join('')}</div>`;
     document.documentElement.appendChild(fabMenu);
     fabMenu.style.left=Math.min(e.clientX,window.innerWidth-fabMenu.offsetWidth-8)+'px';
     fabMenu.style.top=Math.min(e.clientY,window.innerHeight-fabMenu.offsetHeight-8)+'px';
-    fabMenu.querySelectorAll('.ojh-mi').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hotkey')startHotkeyCapture('hotkey','生成快捷键');else if(a==='reshotkey')startHotkeyCapture('resetHotkey','复位快捷键');else if(a==='reset'){resetFab()}});
+    fabMenu.querySelectorAll('.ojh-mi').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hkset')openHkDialog();else if(a==='reset'){resetFab()}});
     fabMenu.querySelectorAll('.ojh-swatch').forEach(sw=>sw.onclick=()=>{settings.theme=sw.dataset.t;saveSettings();applyTheme();closeMenu();showToast('主题已切换')});
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(fabMenu&&!fabMenu.contains(ev.target)){closeMenu();document.removeEventListener('pointerdown',h,true)}},true),0);
   });
-  storage.get(SETTINGS_KEY).then(v=>{if(v&&typeof v==='object'){settings=Object.assign(settings,v);applySettings();applyTheme()}}).catch(()=>{});
+  storage.get(SETTINGS_KEY).then(v=>{if(v&&typeof v==='object'){settings=Object.assign(settings,v);applySettings();applyTheme();fab.title='OJ 助手 ('+hkText()+')'}}).catch(()=>{});
   chrome.storage.onChanged.addListener((ch,area)=>{if(area==='local'&&ch[SETTINGS_KEY]&&ch[SETTINGS_KEY].newValue){settings=Object.assign(settings,ch[SETTINGS_KEY].newValue);applySettings();applyTheme()}});
   window.addEventListener('resize',()=>{if(!settings.visible)return;const r=fab.getBoundingClientRect();if(r.right>window.innerWidth||r.bottom>window.innerHeight||r.left<0||r.top<0){fab.style.left=Math.max(0,Math.min(window.innerWidth-56,r.left))+'px';fab.style.top=Math.max(0,Math.min(window.innerHeight-56,r.top))+'px';fab.style.bottom='auto'}});
   fab.ondblclick=e=>{if(!e.shiftKey){showToast('按住 Shift 再双击才能复位');return}resetFab()};
