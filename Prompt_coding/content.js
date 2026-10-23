@@ -160,8 +160,9 @@
   function lca(a,b){const s=new Set();let x=a;while(x){s.add(x);x=x.parentElement}let y=b;while(y){if(s.has(y))return y;y=y.parentElement}return null}
   function expand(n){let c=n;for(let i=0;i<6;i++){if(!c.parentElement)break;if(tx(c).length>=150&&c.parentElement)break;const a=gather(c);let w=0,s=0;a.forEach(x=>{if(x.strong)s++;else w++});if((w>=2||s>=1)&&tx(c).length>=150)break;c=c.parentElement}return c}
   function extractTitle(d){for(let i=1;i<=5;i++){const h=d.querySelector('h'+i);if(h&&tx(h))return tx(h)}return d.title}
-  function extract(){const docs=[document];document.querySelectorAll('iframe').forEach(f=>{try{if(f.contentDocument && typeof f.contentDocument.createTreeWalker==='function')docs.push(f.contentDocument)}catch(_){}});let best=null,bs=0;docs.forEach(doc=>{const a=gather(doc);if(!a.length)return;const st=a.filter(x=>x.strong),wk=a.filter(x=>!x.strong);let r;if(wk.length>=2){r=wk[0].el;for(let i=1;i<wk.length;i++)r=lca(r,wk[i].el)}else if(st.length)r=st[0].el;else r=a[0].el;if(!r)return;r=expand(r);const t=tx(r);if(t.length<80)return;const ag=gather(r);let s=0,w=0;ag.forEach(x=>{if(x.strong)s++;else w++});const sc=t.length+s*50+w*30;if(sc>bs){bs=sc;best={title:extractTitle(doc),text:t}}});if(best)return best;let f=null,fl=0;document.querySelectorAll('main,article,section,[role=main],.problem,.content,.description').forEach(e=>{const t=tx(e);if(t.length>fl){fl=t.length;f=e}});if(f)return{title:extractTitle(document),text:tx(f)};return{title:document.title,text:document.body.innerText}}
-  function buildPrompt(p){const m={study:'先给「## 思路」（关键观察、算法、正确性、复杂度），再给「## 代码」（完整可提交，带中文注释），最后给「## 边界与易错点」（3~5 条）。',code:'直接给完整可提交的代码，带必要中文注释，不要解释。',hint:'只给分步提示（每步一句话），不要给完整代码。'}[p.mode]||'';const isCpp=p.language.startsWith('C++');const langRule=isCpp?`必须严格遵守 ${p.language} 现代 C++ 风格：
+  function extractLeetCode(){try{if(!/leetcode\.(cn|com)$/.test(location.hostname))return null;let text='';const desc=document.querySelector('[data-track-load="description_content"]');if(desc&&tx(desc).length>60)text=tx(desc);if(!text){const d=document.querySelector('div[data-cy="description-content"]');if(d&&tx(d).length>60)text=tx(d)}let sig='';const vl=document.querySelector('.monaco-editor .view-lines');if(vl)sig=(vl.innerText||'').replace(/\u00a0/g,' ').split('\n').filter(s=>s.trim()).slice(0,40).join('\n').trim();if(!text&&!sig)return null;let out=text;if(sig)out+=(out?'\n\n':'')+'【代码模板/函数签名】\n'+sig;return {title:extractTitle(document),text:out}}catch(_){return null}}
+  function extract(){const lc=extractLeetCode();if(lc&&lc.text&&lc.text.length>=60)return lc;const docs=[document];document.querySelectorAll('iframe').forEach(f=>{try{if(f.contentDocument && typeof f.contentDocument.createTreeWalker==='function')docs.push(f.contentDocument)}catch(_){}});let best=null,bs=0;docs.forEach(doc=>{const a=gather(doc);if(!a.length)return;const st=a.filter(x=>x.strong),wk=a.filter(x=>!x.strong);let r;if(wk.length>=2){r=wk[0].el;for(let i=1;i<wk.length;i++)r=lca(r,wk[i].el)}else if(st.length)r=st[0].el;else r=a[0].el;if(!r)return;r=expand(r);const t=tx(r);if(t.length<80)return;const ag=gather(r);let s=0,w=0;ag.forEach(x=>{if(x.strong)s++;else w++});const sc=t.length+s*50+w*30;if(sc>bs){bs=sc;best={title:extractTitle(doc),text:t}}});if(best)return best;let f=null,fl=0;document.querySelectorAll('main,article,section,[role=main],.problem,.content,.description').forEach(e=>{const t=tx(e);if(t.length>fl){fl=t.length;f=e}});if(f)return{title:extractTitle(document),text:tx(f)};return{title:document.title,text:document.body.innerText}}
+  function buildPrompt(p){const m={study:'先给「## 思路」（关键观察、算法、正确性、复杂度），再给「## 代码」（完整可提交，带中文注释），最后给「## 边界与易错点」（3~5 条）。',code:'直接给完整可提交的代码，带必要中文注释，不要解释。',hint:'只给分步提示（每步一句话），不要给完整代码。'}[p.mode]||'';const isCpp=p.language.startsWith('C++');const FN=/class\s+Solution\b|def\s+\w+\s*\(\s*self\b/.test(p.problem||'');const langRule=isCpp?(FN?`这是「函数式题目」（LeetCode 风格）。必须用 ${p.language} 标准 C++ 语法：只给出完整的 class Solution 类并保持函数签名、方法名、参数、返回类型完全不变；不要写 main 函数；不要任何 cin/cout/printf/scanf 输入输出；不要自行构造测试数据；禁止 #include <bits/stdc++.h>，通常不需要任何 #include（平台已有默认环境）。`:`必须严格遵守 ${p.language} 现代 C++ 风格：
 
 【输入输出模板】（必须照这个写，禁止 printf/scanf/puts/gets）
 \`\`\`cpp
@@ -190,11 +191,13 @@ int main(){
 
 【必须使用】cin、cout、std::string、std::vector、std::map、std::set 等 C++ STL
 
+【头文件】禁止 #include <bits/stdc++.h> 万能头（编译很慢），必须按需引入：用 vector 引 <vector>，用 string 引 <string>，用 sort/min/max 引 <algorithm>，用 map/set 引 <map>/<set>，用 queue/stack 引 <queue>/<stack>，用 pair 引 <utility>，用 sqrt/pow 引 <cmath>，用 INT_MAX 引 <climits>
+
 【精度控制】需要保留 N 位小数时，必须 #include <iomanip>，然后写：
     cout << fixed << setprecision(N) << x << endl;
 禁止用 printf("%.Nf", x) 这种 C 风格精度控制
 
-【换行】输出换行必须用 endl，禁止在字符串里写 "\\n" 换行`:`必须使用 ${p.language} 标准语法。`;return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：代码必须能直接提交评测，用标准输入输出；不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
+【换行】输出换行必须用 endl，禁止在字符串里写 "\\n" 换行`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
 
   const $=id=>drawer.querySelector(id);
   const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
@@ -271,12 +274,38 @@ int main(){
           .replace(/\bprintf\s*\(\s*"([^"%]*)"\s*\)/g,(m,s)=>{const t=s.replace(/\\n$/,'');return 'cout << "'+t+'"'+(s.endsWith('\\n')?' << endl':'')})
           .replace(/\bputs\s*\(\s*(\w+)\s*\)/g,'cout << $1 << endl')
           .replace(/\bputchar\s*\(\s*(['\w][^)]*)\s*\)/g,'cout << $1');
+        // '\n' → endl（换行统一用 endl，模型不听话时兜底）
+        fixedAnswer = fixedAnswer.replace(/<<\s*'\\n'/g,'<< endl').replace(/<<\s*"\\n"/g,'<< endl');
+        // bits/stdc++.h 万能头 → 按需拆解成用到的头文件
+        if(/bits\/stdc\+\+\.h/.test(fixedAnswer)){
+          const hs=new Set(['iostream','vector','string','algorithm']);
+          if(/\bmap\s*</.test(fixedAnswer))hs.add('map');
+          if(/\bset\s*</.test(fixedAnswer))hs.add('set');
+          if(/\bunordered_map\s*</.test(fixedAnswer))hs.add('unordered_map');
+          if(/\bunordered_set\s*</.test(fixedAnswer))hs.add('unordered_set');
+          if(/\b(priority_queue|queue)\s*</.test(fixedAnswer))hs.add('queue');
+          if(/\bstack\s*</.test(fixedAnswer))hs.add('stack');
+          if(/\bdeque\s*</.test(fixedAnswer))hs.add('deque');
+          if(/\bpair\s*</.test(fixedAnswer)||/\bmake_pair\b/.test(fixedAnswer))hs.add('utility');
+          if(/\b(accumulate|iota|partial_sum)\b/.test(fixedAnswer))hs.add('numeric');
+          if(/\b(sqrt|pow|fabs|floor|ceil|round|fmod)\b/.test(fixedAnswer))hs.add('cmath');
+          if(/\b(INT_MAX|INT_MIN|LLONG_MAX|LLONG_MIN)\b/.test(fixedAnswer))hs.add('climits');
+          if(/\b(function|greater|less)\s*</.test(fixedAnswer))hs.add('functional');
+          if(/setprecision/.test(fixedAnswer))hs.add('iomanip');
+          const inc=[...hs].map(h=>'#include <'+h+'>').join('\n');
+          fixedAnswer=fixedAnswer.replace(/#include\s*<bits\/stdc\+\+\.h>[^\n]*\n?/,inc+'\n');
+        }
         // 如果用到 setprecision 但没 iomanip，自动补 include
         if(fixedAnswer.includes('setprecision') && !fixedAnswer.includes('iomanip')){
           fixedAnswer = fixedAnswer.replace(/(#include\s*<iostream>)/,'$1\n#include <iomanip>');
         }
-        // 如果没有 iostream 但有 main，加 using namespace std
-        if(!fixedAnswer.includes('iostream') && fixedAnswer.includes('int main')){
+        // 去重重复的 #include（如 bits 拆解后与模型自带的重复）
+        {const seen=new Set();fixedAnswer=fixedAnswer.split('\n').filter(line=>{const mm=line.match(/^\s*#include\s*[<"]([^>"]+)[>"]/);if(!mm)return true;if(seen.has(mm[1]))return false;seen.add(mm[1]);return true}).join('\n')}
+        // 去重 using namespace std;（模型有时会输出多份）
+        {let seenUns=false;fixedAnswer=fixedAnswer.replace(/^[ \t]*using namespace std;[ \t]*\r?\n?/gm,m=>{if(seenUns)return '';seenUns=true;return m})}
+        // 如果没有 iostream 但有 main（且不是函数式题目），加 using namespace std
+        const FNmode=/class\s+Solution\b|def\s+\w+\s*\(\s*self\b/.test(p.problem||'');
+        if(!FNmode && !fixedAnswer.includes('iostream') && fixedAnswer.includes('int main')){
           fixedAnswer = fixedAnswer.replace(/(#include[^\n]*\n)/,'$1#include <iostream>\nusing namespace std;\n');
         }
         // 提示用户做了替换
