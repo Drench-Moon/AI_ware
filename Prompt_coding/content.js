@@ -174,10 +174,8 @@
 
 【输入输出模板】（必须照这个写，禁止 printf/scanf/puts/gets）
 \`\`\`cpp
-#include <iostream>
+#include <iostream>   // 只引入你实际用到的头文件，示例仅示意
 #include <vector>
-#include <string>
-#include <algorithm>
 using namespace std;
 
 int main(){
@@ -199,7 +197,7 @@ int main(){
 
 【必须使用】cin、cout、std::string、std::vector、std::map、std::set 等 C++ STL
 
-【头文件】禁止 #include <bits/stdc++.h> 万能头（编译很慢），必须按需引入：用 vector 引 <vector>，用 string 引 <string>，用 sort/min/max 引 <algorithm>，用 map/set 引 <map>/<set>，用 queue/stack 引 <queue>/<stack>，用 pair 引 <utility>，用 sqrt/pow 引 <cmath>，用 INT_MAX 引 <climits>
+【头文件】禁止 #include <bits/stdc++.h> 万能头（编译很慢）。写完代码后逐个检查 include：只保留代码里真正用到的，没用到的一律删掉——没用 sort/min/max 就不许写 <algorithm>，没用 string 就不许写 <string>。对照表：vector→<vector>，string→<string>，sort/min/max/reverse/find→<algorithm>，map/set→<map>/<set>，unordered_map→<unordered_map>，queue/stack→<queue>/<stack>，pair→<utility>，sqrt/pow/floor→<cmath>，isdigit/tolower→<cctype>，INT_MAX→<climits>，accumulate→<numeric>，setprecision→<iomanip>
 
 【精度控制】需要保留 N 位小数时，必须 #include <iomanip>，然后写：
     cout << fixed << setprecision(N) << x << endl;
@@ -286,22 +284,59 @@ int main(){
         fixedAnswer = fixedAnswer.replace(/<<\s*'\\n'/g,'<< endl').replace(/<<\s*"\\n"/g,'<< endl');
         // bits/stdc++.h 万能头 → 按需拆解成用到的头文件
         if(/bits\/stdc\+\+\.h/.test(fixedAnswer)){
-          const hs=new Set(['iostream','vector','string','algorithm']);
-          if(/\bmap\s*</.test(fixedAnswer))hs.add('map');
-          if(/\bset\s*</.test(fixedAnswer))hs.add('set');
-          if(/\bunordered_map\s*</.test(fixedAnswer))hs.add('unordered_map');
-          if(/\bunordered_set\s*</.test(fixedAnswer))hs.add('unordered_set');
-          if(/\b(priority_queue|queue)\s*</.test(fixedAnswer))hs.add('queue');
-          if(/\bstack\s*</.test(fixedAnswer))hs.add('stack');
-          if(/\bdeque\s*</.test(fixedAnswer))hs.add('deque');
-          if(/\bpair\s*</.test(fixedAnswer)||/\bmake_pair\b/.test(fixedAnswer))hs.add('utility');
-          if(/\b(accumulate|iota|partial_sum)\b/.test(fixedAnswer))hs.add('numeric');
-          if(/\b(sqrt|pow|fabs|floor|ceil|round|fmod)\b/.test(fixedAnswer))hs.add('cmath');
-          if(/\b(INT_MAX|INT_MIN|LLONG_MAX|LLONG_MIN)\b/.test(fixedAnswer))hs.add('climits');
-          if(/\b(function|greater|less)\s*</.test(fixedAnswer))hs.add('functional');
-          if(/setprecision/.test(fixedAnswer))hs.add('iomanip');
+          const body=fixedAnswer.replace(/^\s*#include.*$/gm,'');
+          const hs=new Set(['iostream']);
+          if(/\bvector\s*</.test(body))hs.add('vector');
+          if(/\bstring\b/.test(body))hs.add('string');
+          if(/\b(sort|min|max|reverse|find|count|lower_bound|upper_bound|unique|fill|fill_n|binary_search|merge|stable_sort|nth_element|next_permutation|prev_permutation|swap|transform|for_each)\b/.test(body))hs.add('algorithm');
+          if(/\bmap\s*</.test(body))hs.add('map');
+          if(/\bset\s*</.test(body))hs.add('set');
+          if(/\bunordered_map\s*</.test(body))hs.add('unordered_map');
+          if(/\bunordered_set\s*</.test(body))hs.add('unordered_set');
+          if(/\b(priority_queue|queue)\s*</.test(body))hs.add('queue');
+          if(/\bstack\s*</.test(body))hs.add('stack');
+          if(/\bdeque\s*</.test(body))hs.add('deque');
+          if(/\bpair\s*</.test(body)||/\bmake_pair\b/.test(body))hs.add('utility');
+          if(/\b(accumulate|iota|partial_sum)\b/.test(body))hs.add('numeric');
+          if(/\b(sqrt|pow|fabs|floor|ceil|round|fmod|sin|cos|tan|log|log2|exp|atan2)\b/.test(body))hs.add('cmath');
+          if(/\b(INT_MAX|INT_MIN|LLONG_MAX|LLONG_MIN|ULLONG_MAX)\b/.test(body))hs.add('climits');
+          if(/\b(function|greater|less)\s*</.test(body))hs.add('functional');
+          if(/\b(setprecision|setw)\b/.test(body))hs.add('iomanip');
+          if(/\b(isdigit|isalpha|isalnum|isupper|islower|isspace|tolower|toupper)\b/.test(body))hs.add('cctype');
+          if(/\b(stringstream|istringstream|ostringstream)\b/.test(body))hs.add('sstream');
           const inc=[...hs].map(h=>'#include <'+h+'>').join('\n');
           fixedAnswer=fixedAnswer.replace(/#include\s*<bits\/stdc\+\+\.h>[^\n]*\n?/,inc+'\n');
+        }
+        // 删除代码中未使用的 #include（按符号检测，宁少删不误删；不在检测表内的头保留）
+        {
+          const lines=fixedAnswer.split('\n');
+          const body=lines.filter(l=>!/^\s*#include\b/.test(l)).join('\n');
+          const USE={
+            iostream:/\b(cin|cout|cerr|endl|istream|ostream)\b/,
+            vector:/\bvector\s*</,
+            string:/\bstring\b/,
+            algorithm:/\b(sort|min|max|reverse|find|count|lower_bound|upper_bound|unique|fill|fill_n|binary_search|merge|stable_sort|nth_element|next_permutation|prev_permutation|swap|transform|for_each)\b/,
+            map:/\bmap\s*</, set:/\bset\s*</,
+            unordered_map:/\bunordered_map\s*</, unordered_set:/\bunordered_set\s*</,
+            queue:/\b(priority_queue|queue)\s*</, stack:/\bstack\s*</, deque:/\bdeque\s*</,
+            utility:/\bpair\s*<|\bmake_pair\b/,
+            numeric:/\b(accumulate|iota|partial_sum)\b/,
+            cmath:/\b(sqrt|pow|fabs|floor|ceil|round|fmod|sin|cos|tan|asin|acos|atan|atan2|log|log2|log10|exp)\b/,
+            climits:/\b(INT_MAX|INT_MIN|LLONG_MAX|LLONG_MIN|ULLONG_MAX)\b/,
+            cctype:/\b(isdigit|isalpha|isalnum|isupper|islower|isspace|tolower|toupper)\b/,
+            cstring:/\b(strlen|strcpy|strcmp|strcat|memset|memcpy)\b/,
+            cstdio:/\b(printf|scanf|sprintf|fgets|puts)\b/,
+            functional:/\b(greater|less)\s*<|\bfunction\s*</,
+            iomanip:/\b(setprecision|setw)\b/,
+            sstream:/\b(stringstream|istringstream|ostringstream)\b/
+          };
+          fixedAnswer=lines.filter(l=>{
+            const m=l.match(/^\s*#include\s*[<"]([^>"]+)[>"]/);
+            if(!m)return true;
+            const chk=USE[m[1]];
+            if(!chk)return true;
+            return chk.test(body);
+          }).join('\n');
         }
         // 如果用到 setprecision 但没 iomanip，自动补 include
         if(fixedAnswer.includes('setprecision') && !fixedAnswer.includes('iomanip')){
@@ -311,10 +346,10 @@ int main(){
         {const seen=new Set();fixedAnswer=fixedAnswer.split('\n').filter(line=>{const mm=line.match(/^\s*#include\s*[<"]([^>"]+)[>"]/);if(!mm)return true;if(seen.has(mm[1]))return false;seen.add(mm[1]);return true}).join('\n')}
         // 去重 using namespace std;（模型有时会输出多份）
         {let seenUns=false;fixedAnswer=fixedAnswer.replace(/^[ \t]*using namespace std;[ \t]*\r?\n?/gm,m=>{if(seenUns)return '';seenUns=true;return m})}
-        // 如果没有 iostream 但有 main（且不是函数式题目），加 using namespace std
+        // 完全没有任何 include 且有 main 时，前置兜底（不与上面的删除逻辑打架）
         const FNmode=/class\s+Solution\b|def\s+\w+\s*\(\s*self\b/.test(p.problem||'');
-        if(!FNmode && !fixedAnswer.includes('iostream') && fixedAnswer.includes('int main')){
-          fixedAnswer = fixedAnswer.replace(/(#include[^\n]*\n)/,'$1#include <iostream>\nusing namespace std;\n');
+        if(!FNmode && !/#include\b/.test(fixedAnswer) && fixedAnswer.includes('int main')){
+          fixedAnswer = '#include <iostream>\nusing namespace std;\n'+fixedAnswer;
         }
         // 提示用户做了替换
         if(fixedAnswer !== d.answer){
