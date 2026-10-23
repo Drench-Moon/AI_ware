@@ -170,7 +170,7 @@ int main(){
     cin >> n;            // 读取整数
     vector<int> a(n);
     for(int i=0;i<n;i++) cin >> a[i];  // 读取数组
-    cout << ans << "\\n";   // 输出答案
+    cout << ans << endl;   // 输出答案
     return 0;
 }
 \`\`\`
@@ -183,8 +183,10 @@ int main(){
 【必须使用】cin、cout、std::string、std::vector、std::map、std::set 等 C++ STL
 
 【精度控制】需要保留 N 位小数时，必须 #include <iomanip>，然后写：
-    cout << fixed << setprecision(N) << x << "\n";
-禁止用 printf("%.Nf", x) 这种 C 风格精度控制`:`必须使用 ${p.language} 标准语法。`;return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：代码必须能直接提交评测，用标准输入输出；不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
+    cout << fixed << setprecision(N) << x << endl;
+禁止用 printf("%.Nf", x) 这种 C 风格精度控制
+
+【换行】输出换行必须用 endl，禁止在字符串里写 "\\n" 换行`:`必须使用 ${p.language} 标准语法。`;return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：代码必须能直接提交评测，用标准输入输出；不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
 
   const $=id=>drawer.querySelector(id);
   const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
@@ -235,7 +237,7 @@ int main(){
             const argList = args.split(',').map(s=>s.trim()).filter(s=>s);
             const mainArg = argList[0]||'ans';
             let out = 'cout << fixed << setprecision(' + prec + ') << ' + mainArg;
-            if(fmt.includes('\\n')) out += ' << "\\n"';
+            if(fmt.includes('\\n')) out += ' << endl';
             else if(fmt.includes(' ')) out += ' << " "';
             return out;
           })
@@ -254,12 +256,12 @@ int main(){
               if(seg) out += ' << "' + seg + '"';
               if(ai < argList.length){ out += ' << ' + argList[ai]; ai++; }
             }
-            if(fmt.includes('\\n')) out += ' << "\\n"';
+            if(fmt.includes('\\n')) out += ' << endl';
             return out;
           })
-          // 纯文本 printf("hello\n") → cout << "hello\n"
-          .replace(/\bprintf\s*\(\s*"([^"%]*)"\s*\)/g,'cout << "$1"')
-          .replace(/\bputs\s*\(\s*(\w+)\s*\)/g,'cout << $1 << "\\n"')
+          // 纯文本 printf("hello\n") → cout << "hello" << endl
+          .replace(/\bprintf\s*\(\s*"([^"%]*)"\s*\)/g,(m,s)=>{const t=s.replace(/\\n$/,'');return 'cout << "'+t+'"'+(s.endsWith('\\n')?' << endl':'')})
+          .replace(/\bputs\s*\(\s*(\w+)\s*\)/g,'cout << $1 << endl')
           .replace(/\bputchar\s*\(\s*(['\w][^)]*)\s*\)/g,'cout << $1');
         // 如果用到 setprecision 但没 iomanip，自动补 include
         if(fixedAnswer.includes('setprecision') && !fixedAnswer.includes('iomanip')){
