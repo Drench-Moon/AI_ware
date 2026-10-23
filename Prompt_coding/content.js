@@ -224,7 +224,7 @@ int main(){
     cout << fixed << setprecision(N) << x << endl;
 禁止用 printf("%.Nf", x) 这种 C 风格精度控制
 
-【换行】${(settings&&settings.codePrefs&&/\\n/.test(settings.codePrefs)&&!/endl/i.test(settings.codePrefs))?'遵循下方【用户代码偏好】，用户未另行说明的部分仍用 endl':'输出换行必须用 endl，禁止在字符串里写 "\\n" 换行'}`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);const prefsLine=(settings&&settings.codePrefs&&settings.codePrefs.trim())?'\n\n【用户代码偏好】（AI 必须自主理解并严格遵守；本段与上方默认规则冲突时，以本段为准）：\n'+settings.codePrefs.trim():'';return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：写完代码后必须自查一遍——逐个确认每个 #include 都被代码真正用到（没用的删掉）、没有多余变量和死代码、没有编译错误，确保提交即可通过编译；${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。${prefsLine}\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
+【换行】${(settings&&settings.codePrefs&&/\\n/.test(settings.codePrefs)&&!/endl/i.test(settings.codePrefs))?'遵循下方【用户代码偏好】，用户未另行说明的部分仍用 endl':'输出换行必须用 endl，禁止在字符串里写 "\\n" 换行'}，【循环体】for 或 while 循环的执行体即使只有一行也必须用大括号 {} 包裹，方便后续修改`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);const prefsLine=(settings&&settings.codePrefs&&settings.codePrefs.trim())?'\n\n【用户代码偏好】（AI 必须自主理解并严格遵守；本段与上方默认规则冲突时，以本段为准）：\n'+settings.codePrefs.trim():'';return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：写完代码后必须自查一遍——逐个确认每个 #include 都被代码真正用到（没用的删掉）、没有多余变量和死代码、没有编译错误，确保提交即可通过编译；${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。${prefsLine}\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
 
   const $=id=>drawer.querySelector(id);
   const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
@@ -472,7 +472,7 @@ int main(){
     dlg.style.left=x+'px';dlg.style.top=y+'px';
   }
   function openHkDialog(){
-    closeMenu();closeHkDialog();
+    closeMenu();closeHkDialog();closePrefDialog();
     hkDialog=document.createElement('div');
     hkDialog.id='ojh-hkdialog';
     hkDialog.innerHTML=`
@@ -496,8 +496,8 @@ int main(){
     prefDialog.innerHTML=`
       <div class="ojh-hkhd"><span>✏ 代码偏好</span><span class="ojh-hkclose" id="ojh-prefclose">✕</span></div>
       <div class="ojh-prefbody">
-        <div class="ojh-prefdesc">写下你对生成代码的偏好，AI 会自主理解并遵守；与默认规则冲突时以这里为准。留空使用默认规则（换行统一 endl）。</div>
-        <textarea id="ojh-preftext" placeholder="例如：&#10;· 数据量大时输出换行用 '\\n'，比 endl 快（endl 每次都刷新缓冲区）&#10;· 多组数据大量输出时务必用 '\\n'&#10;· 不要 ios::sync_with_stdio(false)"></textarea>
+        <div class="ojh-prefdesc">写下你对生成代码的偏好，AI 会自主理解并遵守；与默认规则冲突时以这里为准。默认规则：换行统一 endl、循环体单行也加大括号。留空使用默认。</div>
+        <textarea id="ojh-preftext" placeholder="例如：&#10;· 数据量大时输出换行用 '\\n'，比 endl 快（endl 每次都刷新缓冲区）&#10;· 多组数据大量输出时务必用 '\\n'&#10;· 循环体不需要加大括号（覆盖默认规则）&#10;· 不要 ios::sync_with_stdio(false)"></textarea>
         <div class="ojh-prefbtns"><button class="ojh-hkbtn" id="ojh-prefsave">保存偏好</button><button class="ojh-hkbtn" id="ojh-prefclear">清空恢复默认</button><span id="ojh-prefst" style="font-size:11px;color:#059669"></span></div>
       </div>`;
     document.documentElement.appendChild(prefDialog);
