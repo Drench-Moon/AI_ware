@@ -69,6 +69,11 @@
     .ojh-hkbtn{padding:5px 14px;border-radius:6px;border:1px solid var(--ojh-c1,#2563eb);background:#fff;color:var(--ojh-c1,#2563eb);cursor:pointer;font-size:12px;flex-shrink:0}
     .ojh-hkbtn:hover{background:var(--ojh-c1,#2563eb);color:#fff}
     .ojh-hktip{font-size:11px;color:#94a3b8;padding:8px 14px 10px}
+    .ojh-prefbody{padding:10px 14px}
+    .ojh-prefdesc{font-size:11px;color:#64748b;margin-bottom:8px}
+    .ojh-prefbody textarea{width:100%;height:110px;resize:vertical;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font:12px/1.5 system-ui;box-sizing:border-box}
+    .ojh-prefbody textarea:focus{outline:none;border-color:var(--ojh-c1,#2563eb)}
+    .ojh-prefbtns{display:flex;gap:8px;align-items:center;margin-top:8px}
   `;
   (document.head||document.documentElement).appendChild(style);
 
@@ -215,7 +220,7 @@ int main(){
     cout << fixed << setprecision(N) << x << endl;
 禁止用 printf("%.Nf", x) 这种 C 风格精度控制
 
-【换行】输出换行必须用 endl，禁止在字符串里写 "\\n" 换行`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
+【换行】${(settings&&settings.codePrefs&&/\\n/.test(settings.codePrefs)&&!/endl/i.test(settings.codePrefs))?'遵循下方【用户代码偏好】，用户未另行说明的部分仍用 endl':'输出换行必须用 endl，禁止在字符串里写 "\\n" 换行'}`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);const prefsLine=(settings&&settings.codePrefs&&settings.codePrefs.trim())?'\n\n【用户代码偏好】（AI 必须自主理解并严格遵守；本段与上方默认规则冲突时，以本段为准）：\n'+settings.codePrefs.trim():'';return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。${prefsLine}\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
 
   const $=id=>drawer.querySelector(id);
   const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
@@ -253,6 +258,9 @@ int main(){
       // 强制把 C 风格 IO 转成 C++ 风格（模型不听话时兜底）
       let fixedAnswer = d.answer;
       if(p.language.startsWith('C++')){
+        // 用户代码偏好里要求 '\n'（且未提 endl）时，换行保留 '\n'（大量输出更快），否则统一 endl
+        const prefNl = !!(settings && settings.codePrefs && /\\n/.test(settings.codePrefs) && !/endl/i.test(settings.codePrefs));
+        const nlT = prefNl ? ' << "\\n"' : ' << endl';
         // 先记录 printf 里用到的最高精度（%.Nf），后面统一加 setprecision
         let maxPrec = 0;
         (fixedAnswer.match(/%\.\d+f/g)||[]).forEach(m=>{const v=parseInt(m.slice(2,-1)); if(v>maxPrec) maxPrec=v;});
@@ -266,7 +274,7 @@ int main(){
             const argList = args.split(',').map(s=>s.trim()).filter(s=>s);
             const mainArg = argList[0]||'ans';
             let out = 'cout << fixed << setprecision(' + prec + ') << ' + mainArg;
-            if(fmt.includes('\\n')) out += ' << endl';
+            if(fmt.includes('\\n')) out += nlT;
             else if(fmt.includes(' ')) out += ' << " "';
             return out;
           })
@@ -285,15 +293,15 @@ int main(){
               if(seg) out += ' << "' + seg + '"';
               if(ai < argList.length){ out += ' << ' + argList[ai]; ai++; }
             }
-            if(fmt.includes('\\n')) out += ' << endl';
+            if(fmt.includes('\\n')) out += nlT;
             return out;
           })
           // 纯文本 printf("hello\n") → cout << "hello" << endl
-          .replace(/\bprintf\s*\(\s*"([^"%]*)"\s*\)/g,(m,s)=>{const t=s.replace(/\\n$/,'');return 'cout << "'+t+'"'+(s.endsWith('\\n')?' << endl':'')})
-          .replace(/\bputs\s*\(\s*(\w+)\s*\)/g,'cout << $1 << endl')
+          .replace(/\bprintf\s*\(\s*"([^"%]*)"\s*\)/g,(m,s)=>{const t=s.replace(/\\n$/,'');return 'cout << "'+t+'"'+(s.endsWith('\\n')?nlT:'')})
+          .replace(/\bputs\s*\(\s*(\w+)\s*\)/g,()=>'cout << $1'+nlT)
           .replace(/\bputchar\s*\(\s*(['\w][^)]*)\s*\)/g,'cout << $1');
-        // '\n' → endl（换行统一用 endl，模型不听话时兜底）
-        fixedAnswer = fixedAnswer.replace(/<<\s*'\\n'/g,'<< endl').replace(/<<\s*"\\n"/g,'<< endl');
+        // '\n' → endl（换行统一用 endl，模型不听话时兜底）；用户偏好 '\n' 时跳过
+        if(!prefNl) fixedAnswer = fixedAnswer.replace(/<<\s*'\\n'/g,'<< endl').replace(/<<\s*"\\n"/g,'<< endl');
         // bits/stdc++.h 万能头 → 按需拆解成用到的头文件
         if(/bits\/stdc\+\+\.h/.test(fixedAnswer)){
           const body=fixedAnswer.replace(/^\s*#include.*$/gm,'');
@@ -383,7 +391,7 @@ int main(){
   // ===== 右键菜单设置：显示开关 / 自定义快捷键 / 主题色 =====
   const SETTINGS_KEY='ojh_settings_v1';
   const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
-  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},resetHotkey:null,theme:'blue'};
+  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},resetHotkey:null,theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
   function hkTextOf(hk){return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
@@ -436,6 +444,29 @@ int main(){
     hkDialog.querySelectorAll('.ojh-hkbtn').forEach(btn=>btn.onclick=()=>startHkCapture(btn.dataset.f,btn));
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(hkDialog&&!hkDialog.contains(ev.target)){closeHkDialog();document.removeEventListener('pointerdown',h,true)}},true),0);
   }
+  // ===== 代码偏好弹窗：自定义输出偏好，AI 自主理解并遵守 =====
+  let prefDialog=null;
+  function closePrefDialog(){if(prefDialog){prefDialog.remove();prefDialog=null}}
+  function openPrefsDialog(){
+    closeMenu();closeHkDialog();closePrefDialog();
+    prefDialog=document.createElement('div');
+    prefDialog.id='ojh-hkdialog';
+    prefDialog.innerHTML=`
+      <div class="ojh-hkhd"><span>✏ 代码偏好</span><span class="ojh-hkclose" id="ojh-prefclose">✕</span></div>
+      <div class="ojh-prefbody">
+        <div class="ojh-prefdesc">写下你对生成代码的偏好，AI 会自主理解并遵守；与默认规则冲突时以这里为准。留空使用默认规则（换行统一 endl）。</div>
+        <textarea id="ojh-preftext" placeholder="例如：&#10;· 数据量大时输出换行用 '\\n'，比 endl 快（endl 每次都刷新缓冲区）&#10;· 多组数据大量输出时务必用 '\\n'&#10;· 不要 ios::sync_with_stdio(false)"></textarea>
+        <div class="ojh-prefbtns"><button class="ojh-hkbtn" id="ojh-prefsave">保存偏好</button><button class="ojh-hkbtn" id="ojh-prefclear">清空恢复默认</button><span id="ojh-prefst" style="font-size:11px;color:#059669"></span></div>
+      </div>`;
+    document.documentElement.appendChild(prefDialog);
+    prefDialog.style.left=Math.max(8,(window.innerWidth-prefDialog.offsetWidth)/2)+'px';
+    prefDialog.style.top=Math.max(8,Math.min(window.innerHeight*0.28,window.innerHeight-prefDialog.offsetHeight-8))+'px';
+    prefDialog.querySelector('#ojh-preftext').value=settings.codePrefs||'';
+    prefDialog.querySelector('#ojh-prefclose').onclick=closePrefDialog;
+    prefDialog.querySelector('#ojh-prefsave').onclick=()=>{settings.codePrefs=prefDialog.querySelector('#ojh-preftext').value;saveSettings();prefDialog.querySelector('#ojh-prefst').textContent='✓ 已保存，下次生成生效';};
+    prefDialog.querySelector('#ojh-prefclear').onclick=()=>{prefDialog.querySelector('#ojh-preftext').value='';settings.codePrefs='';saveSettings();prefDialog.querySelector('#ojh-prefst').textContent='已清空，恢复默认规则';};
+    setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(prefDialog&&!prefDialog.contains(ev.target)){closePrefDialog();document.removeEventListener('pointerdown',h,true)}},true),0);
+  }
   function resetFab(){drawer.style.removeProperty('--ojh-x');drawer.style.removeProperty('--ojh-y');drawer.style.removeProperty('--ojh-miny');drawer.classList.remove('ojh-minimized','ojh-open');savePos({});fab.style.removeProperty('left');fab.style.removeProperty('top');fab.style.removeProperty('bottom');storage.set(FAB_POS_KEY,null).catch(()=>{});showToast('已重置位置')}
   let fabMenu=null;
   function closeMenu(){if(fabMenu){fabMenu.remove();fabMenu=null}}
@@ -446,13 +477,14 @@ int main(){
     fabMenu.innerHTML=`
       <div class="ojh-mi" data-a="toggle">${settings.visible?'隐藏悬浮球':'显示悬浮球'}</div>
       <div class="ojh-mi" data-a="hkset">⌨ 快捷键设置（生成 ${hkText()} / 复位 ${hkLabel('resetHotkey')}）</div>
+      <div class="ojh-mi" data-a="prefs">✏ 代码偏好${settings.codePrefs?'（已设置）':''}</div>
       <div class="ojh-mi" data-a="reset">重置位置</div>
       <div class="ojh-msep">主题颜色</div>
       <div class="ojh-mrow">${Object.keys(THEMES).map(t=>`<span class="ojh-swatch${t===settings.theme?' on':''}" data-t="${t}" style="background:${THEMES[t][0]}" title="${t}"></span>`).join('')}</div>`;
     document.documentElement.appendChild(fabMenu);
     fabMenu.style.left=Math.min(e.clientX,window.innerWidth-fabMenu.offsetWidth-8)+'px';
     fabMenu.style.top=Math.min(e.clientY,window.innerHeight-fabMenu.offsetHeight-8)+'px';
-    fabMenu.querySelectorAll('.ojh-mi').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hkset')openHkDialog();else if(a==='reset'){resetFab()}});
+    fabMenu.querySelectorAll('.ojh-mi').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hkset')openHkDialog();else if(a==='prefs')openPrefsDialog();else if(a==='reset'){resetFab()}});
     fabMenu.querySelectorAll('.ojh-swatch').forEach(sw=>sw.onclick=()=>{settings.theme=sw.dataset.t;saveSettings();applyTheme();closeMenu();showToast('主题已切换')});
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(fabMenu&&!fabMenu.contains(ev.target)){closeMenu();document.removeEventListener('pointerdown',h,true)}},true),0);
   });
