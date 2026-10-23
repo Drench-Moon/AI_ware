@@ -62,11 +62,11 @@ $('save').addEventListener('click', async () => {
     const r = await chrome.runtime.sendMessage({ type: 'OJ_UPDATE_INFO' });
     if (r && r.ok && r.info && r.info.hasUpdate) {
       const s = $('status');
-      s.textContent = '🎉 发现新版本 v' + r.info.latest + '，点这里去更新';
+      s.textContent = '🎉 发现新版本 v' + r.info.latest + '，点此更新';
       s.className = 'status ok';
       s.style.cursor = 'pointer';
       s.style.textDecoration = 'underline';
-      s.onclick = () => window.open(r.info.url, '_blank');
+      s.onclick = () => window.open(r.info.zipUrl || 'https://github.com/Drench-Moon/AI_ware/archive/refs/heads/main.zip', '_blank');
     }
   } catch (_) {}
 })();

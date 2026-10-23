@@ -21,6 +21,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 const UPDATE_KEY = 'ojh_update_info';
 const REMOTE_MANIFEST = 'https://raw.githubusercontent.com/Drench-Moon/AI_ware/main/Prompt_coding/manifest.json';
 const RELEASE_URL = 'https://github.com/Drench-Moon/AI_ware';
+const RELEASE_ZIP = 'https://github.com/Drench-Moon/AI_ware/archive/refs/heads/main.zip';
 
 function cmpVer(a, b) {
   const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
@@ -43,6 +44,7 @@ async function checkForUpdate() {
       latest: remote.version || local,
       hasUpdate: cmpVer(remote.version || local, local) > 0,
       url: RELEASE_URL,
+      zipUrl: RELEASE_ZIP,
       checkedAt: Date.now(),
     };
     await chrome.storage.local.set({ [UPDATE_KEY]: info });

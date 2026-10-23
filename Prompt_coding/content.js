@@ -47,7 +47,8 @@
     #ojh-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     #ojh-update-banner{display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(90deg,#f59e0b,#f97316);color:#fff;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
     #ojh-update-banner:hover{filter:brightness(1.07)}
-    #ojh-update-banner .ojh-up-link{text-decoration:underline;white-space:nowrap}
+    #ojh-update-banner .ojh-up-btn{background:#fff;color:#b45309;border-radius:6px;padding:3px 12px;font-weight:700;white-space:nowrap;cursor:pointer;flex-shrink:0}
+    #ojh-update-banner .ojh-up-btn:hover{background:#fff7ed}
     #ojh-fab .ojh-dot{position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#ef4444;border:2px solid #fff;border-radius:50%;pointer-events:none}
   `;
   (document.head||document.documentElement).appendChild(style);
@@ -110,8 +111,15 @@
         if(drawer.querySelector('#ojh-update-banner')) return;
         const b=document.createElement('div');
         b.id='ojh-update-banner';
-        b.innerHTML='<span>🎉 新版本 v'+esc(info.latest)+' 已发布（当前 v'+esc(info.local)+'）</span><span class="ojh-up-link">去更新 →</span>';
-        b.onclick=()=>window.open(info.url,'_blank');
+        b.innerHTML='<span>🎉 新版本 v'+esc(info.latest)+' 已发布（当前 v'+esc(info.local)+'）</span><span class="ojh-up-btn">点此更新</span>';
+        b.onclick=()=>window.open(info.url||'https://github.com/Drench-Moon/AI_ware','_blank');
+        const upBtn=b.querySelector('.ojh-up-btn');
+        if(upBtn)upBtn.onclick=ev=>{
+          ev.stopPropagation();
+          const a=document.createElement('a');
+          a.href=info.zipUrl||'https://github.com/Drench-Moon/AI_ware/archive/refs/heads/main.zip';
+          document.body.appendChild(a);a.click();a.remove();
+        };
         drawer.insertBefore(b,drawer.firstChild);
       });
     }catch(_){}
