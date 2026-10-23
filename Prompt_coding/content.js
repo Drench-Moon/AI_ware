@@ -426,7 +426,7 @@ int main(){
     }
   });
 
-  document.addEventListener('keydown',e=>{if(e.altKey&&e.key.toLowerCase()==='g'&&!e.repeat&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
+  document.addEventListener('keydown',e=>{if(e.altKey&&e.key.toLowerCase()==='g'&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
 
   const pill=document.createElement('div');pill.className='ojh-pill';pill.textContent='OJ 注入 OK';document.documentElement.appendChild(pill);setTimeout(()=>pill.remove(),3000);
@@ -434,8 +434,6 @@ int main(){
   (async ()=>{
     try{
       const cfg = await chrome.storage.local.get(['model','baseUrl']);
-      const model = (cfg.model||'').split('/').pop() || 'AI';
-      $('label[for="ojh-answer"], label[id$="-answer"]').forEach(el=>{});
       const lbls = document.querySelectorAll('label');
       for(const l of lbls){
         if(l.textContent.includes('AI 返回的回答')){
@@ -447,7 +445,6 @@ int main(){
   })();
     console.log('[OJ] 注入成功。点击左下角 OJ 按钮或按 Alt+G。');
   showToast('OJ 助手已就绪，按 Alt+G 使用');
-})();
 
   window.addEventListener('resize', ()=>{
     const r=drawer.getBoundingClientRect();
@@ -464,3 +461,4 @@ int main(){
       savePos({x,y,w,h});
     }
   });
+})();
