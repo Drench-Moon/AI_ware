@@ -140,12 +140,12 @@
         const b=document.createElement('div');
         b.id='ojh-update-banner';
         b.innerHTML='<span>🎉 新版本 v'+esc(info.latest)+' 已发布（当前 v'+esc(info.local)+'）</span><span class="ojh-up-btn">点此更新</span>';
-        b.onclick=()=>window.open(info.url||'https://github.com/Drench-Moon/AI_ware','_blank');
+        b.onclick=()=>window.open(info.url||'https://github.com/Drench-Moon/AI_ware/releases/latest','_blank');
         const upBtn=b.querySelector('.ojh-up-btn');
         if(upBtn)upBtn.onclick=ev=>{
           ev.stopPropagation();
           const a=document.createElement('a');
-          a.href=info.zipUrl||'https://github.com/Drench-Moon/AI_ware/archive/refs/heads/main.zip';
+          a.href=info.zipUrl||'https://github.com/Drench-Moon/AI_ware/releases/latest/download/Prompt_coding.zip';
           document.body.appendChild(a);a.click();a.remove();
         };
         drawer.insertBefore(b,drawer.firstChild);
