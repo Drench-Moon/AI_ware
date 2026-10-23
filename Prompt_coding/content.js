@@ -220,7 +220,7 @@ int main(){
     cout << fixed << setprecision(N) << x << endl;
 禁止用 printf("%.Nf", x) 这种 C 风格精度控制
 
-【换行】${(settings&&settings.codePrefs&&/\\n/.test(settings.codePrefs)&&!/endl/i.test(settings.codePrefs))?'遵循下方【用户代码偏好】，用户未另行说明的部分仍用 endl':'输出换行必须用 endl，禁止在字符串里写 "\\n" 换行'}`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);const prefsLine=(settings&&settings.codePrefs&&settings.codePrefs.trim())?'\n\n【用户代码偏好】（AI 必须自主理解并严格遵守；本段与上方默认规则冲突时，以本段为准）：\n'+settings.codePrefs.trim():'';return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。${prefsLine}\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
+【换行】${(settings&&settings.codePrefs&&/\\n/.test(settings.codePrefs)&&!/endl/i.test(settings.codePrefs))?'遵循下方【用户代码偏好】，用户未另行说明的部分仍用 endl':'输出换行必须用 endl，禁止在字符串里写 "\\n" 换行'}`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);const prefsLine=(settings&&settings.codePrefs&&settings.codePrefs.trim())?'\n\n【用户代码偏好】（AI 必须自主理解并严格遵守；本段与上方默认规则冲突时，以本段为准）：\n'+settings.codePrefs.trim():'';return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：写完代码后必须自查一遍——逐个确认每个 #include 都被代码真正用到（没用的删掉）、没有多余变量和死代码、没有编译错误，确保提交即可通过编译；${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。${prefsLine}\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
 
   const $=id=>drawer.querySelector(id);
   const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
@@ -302,9 +302,14 @@ int main(){
           .replace(/\bputchar\s*\(\s*(['\w][^)]*)\s*\)/g,'cout << $1');
         // '\n' → endl（换行统一用 endl，模型不听话时兜底）；用户偏好 '\n' 时跳过
         if(!prefNl) fixedAnswer = fixedAnswer.replace(/<<\s*'\\n'/g,'<< endl').replace(/<<\s*"\\n"/g,'<< endl');
+        // 头文件使用检测只看代码块内容（避免「思路」文字里提到 sqrt/sort 等词导致误判为使用中）
+        const codeBodies=[];
+        fixedAnswer.replace(/```[^\n]*\n([\s\S]*?)```/g,(m,c)=>{codeBodies.push(c);return m});
+        let codeBody=codeBodies.join('\n');
+        if(!codeBody.trim()) codeBody=fixedAnswer.replace(/^\s*#include.*$/gm,'');
         // bits/stdc++.h 万能头 → 按需拆解成用到的头文件
         if(/bits\/stdc\+\+\.h/.test(fixedAnswer)){
-          const body=fixedAnswer.replace(/^\s*#include.*$/gm,'');
+          const body=codeBody;
           const hs=new Set(['iostream']);
           if(/\bvector\s*</.test(body))hs.add('vector');
           if(/\bstring\b/.test(body))hs.add('string');
@@ -327,10 +332,9 @@ int main(){
           const inc=[...hs].map(h=>'#include <'+h+'>').join('\n');
           fixedAnswer=fixedAnswer.replace(/#include\s*<bits\/stdc\+\+\.h>[^\n]*\n?/,inc+'\n');
         }
-        // 删除代码中未使用的 #include（按符号检测，宁少删不误删；不在检测表内的头保留）
+        // 删除代码中未使用的 #include（按符号检测，只看代码块内容；宁少删不误删，不在检测表内的头保留）
         {
           const lines=fixedAnswer.split('\n');
-          const body=lines.filter(l=>!/^\s*#include\b/.test(l)).join('\n');
           const USE={
             iostream:/\b(cin|cout|cerr|endl|istream|ostream)\b/,
             vector:/\bvector\s*</,
@@ -355,7 +359,7 @@ int main(){
             if(!m)return true;
             const chk=USE[m[1]];
             if(!chk)return true;
-            return chk.test(body);
+            return chk.test(codeBody);
           }).join('\n');
         }
         // 如果用到 setprecision 但没 iomanip，自动补 include
