@@ -8,17 +8,17 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
+    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ojh-c1,#2563eb),var(--ojh-c2,#1d4ed8));color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
     #ojh-fab:hover{transform:scale(1.06)}
     #ojh-drawer{position:fixed;top:0;left:0;width:min(480px,90vw);height:100vh;z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:320px;min-height:300px}
     #ojh-drawer.ojh-open{transform:translate3d(var(--ojh-x,0),var(--ojh-y,0),0) !important;transition:none}
     #ojh-drawer.ojh-open.from-left{transform:translate3d(0,0,0)}
-    #ojh-resize{position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,#2563eb 50%,#2563eb 60%,transparent 60%,transparent 70%,#2563eb 70%,#2563eb 80%,transparent 80%);z-index:2}
+    #ojh-resize{position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,var(--ojh-c1,#2563eb) 50%,var(--ojh-c1,#2563eb) 60%,transparent 60%,transparent 70%,var(--ojh-c1,#2563eb) 70%,var(--ojh-c1,#2563eb) 80%,transparent 80%);z-index:2}
     #ojh-hd{cursor:move;user-select:none}
     #ojh-drawer.ojh-minimized .ojh-body{display:none}
     #ojh-drawer.ojh-minimized{height:auto;transform:translate3d(var(--ojh-x,0),var(--ojh-miny,calc(100vh - 42px)),0) !important}
     #ojh-drawer *{box-sizing:border-box}
-    .ojh-hd{background:linear-gradient(135deg,#1e40af,#2563eb);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+    .ojh-hd{background:linear-gradient(135deg,var(--ojh-c2,#1e40af),var(--ojh-c1,#2563eb));color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
     .ojh-hd h3{margin:0;font-size:15px}
     .ojh-body{flex:1;overflow-y:auto;padding:14px}
     .ojh-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px}
@@ -29,14 +29,14 @@
     .ojh-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     .ojh-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
     .ojh-btn{padding:7px 12px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:12px;font-weight:500}
-    .ojh-btn.primary{background:#2563eb;color:#fff;border-color:#2563eb}
-    .ojh-btn.primary:hover{background:#1d4ed8}
+    .ojh-btn.primary{background:var(--ojh-c1,#2563eb);color:#fff;border-color:var(--ojh-c1,#2563eb)}
+    .ojh-btn.primary:hover{background:var(--ojh-c2,#1d4ed8)}
     .ojh-btn.danger{color:#dc2626;border-color:#fecaca}
-    .ojh-hint{background:#eff6ff;border-left:3px solid #2563eb;color:#1e40af;padding:8px 10px;border-radius:4px;font-size:12px;margin:10px 0}
+    .ojh-hint{background:#eff6ff;border-left:3px solid var(--ojh-c1,#2563eb);color:var(--ojh-c2,#1e40af);padding:8px 10px;border-radius:4px;font-size:12px;margin:10px 0}
     .ojh-result{margin-top:12px;border:1px dashed #e2e8f0;border-radius:6px;padding:10px;background:#fafbfc;font-size:12px;max-height:40vh;overflow-y:auto}
     .ojh-tabs{display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:10px}
     .ojh-tab{padding:7px 14px;cursor:pointer;font-size:13px;color:#64748b;border-bottom:2px solid transparent}
-    .ojh-tab.active{color:#2563eb;border-bottom-color:#2563eb;font-weight:600}
+    .ojh-tab.active{color:var(--ojh-c1,#2563eb);border-bottom-color:var(--ojh-c1,#2563eb);font-weight:600}
     .ojh-pane{display:none}.ojh-pane.active{display:block}
     .ojh-hist{border-bottom:1px solid #e2e8f0;padding:8px 4px;cursor:pointer}
     .ojh-hist:hover{background:#f8fafc}
@@ -50,6 +50,13 @@
     #ojh-update-banner .ojh-up-btn{background:#fff;color:#b45309;border-radius:6px;padding:3px 12px;font-weight:700;white-space:nowrap;cursor:pointer;flex-shrink:0}
     #ojh-update-banner .ojh-up-btn:hover{background:#fff7ed}
     #ojh-fab .ojh-dot{position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#ef4444;border:2px solid #fff;border-radius:50%;pointer-events:none}
+    #ojh-menu{position:fixed;z-index:2147483647;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:6px;min-width:190px;font-family:system-ui;font-size:13px;color:#0f172a}
+    .ojh-mi{padding:7px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
+    .ojh-mi:hover{background:#eff6ff}
+    .ojh-msep{font-size:11px;color:#94a3b8;padding:6px 10px 2px}
+    .ojh-mrow{display:flex;gap:8px;padding:6px 10px 4px}
+    .ojh-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+    .ojh-swatch.on{border-color:#0f172a}
   `;
   (document.head||document.documentElement).appendChild(style);
 
@@ -326,11 +333,58 @@ int main(){
   $('#ojh-skip').onclick=()=>{answer.value='';hint.style.display='none';showToast('已跳过')};
   $('#ojh-close').onclick=()=>drawer.classList.remove('ojh-open');
   const storage={get:async k=>{try{return(await chrome.storage.local.get(k))[k]}catch(_){return null}},set:async(k,v)=>{try{await chrome.storage.local.set({[k]:v})}catch(_){}}};
+  // ===== 右键菜单设置：显示开关 / 自定义快捷键 / 主题色 =====
+  const SETTINGS_KEY='ojh_settings_v1';
+  const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
+  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},theme:'blue'};
+  function saveSettings(){storage.set(SETTINGS_KEY,settings)}
+  function hkText(){return (settings.hotkey.ctrl?'Ctrl+':'')+(settings.hotkey.alt?'Alt+':'')+(settings.hotkey.shift?'Shift+':'')+settings.hotkey.key.toUpperCase()}
+  function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
+  function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
+  function applyTheme(){const t=THEMES[settings.theme]||THEMES.blue;document.documentElement.style.setProperty('--ojh-c1',t[0]);document.documentElement.style.setProperty('--ojh-c2',t[1])}
+  function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键可再次隐藏':'悬浮球已隐藏，'+hkText()+' 仍可用；到扩展弹窗里可重新开启')}
+  function startHotkeyCapture(){
+    showToast('请按下新的快捷键（需包含 Ctrl 或 Alt），按 Esc 取消');
+    const h=e=>{
+      e.preventDefault();e.stopPropagation();
+      if(e.key==='Escape'){document.removeEventListener('keydown',h,true);showToast('已取消');return}
+      const k=e.key.toLowerCase();
+      if(['control','alt','shift','meta'].includes(k))return;
+      if(!(e.ctrlKey||e.altKey)){showToast('必须包含 Ctrl 或 Alt 修饰键');return}
+      settings.hotkey={alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:k};
+      saveSettings();
+      document.removeEventListener('keydown',h,true);
+      showToast('快捷键已设置为 '+hkText());
+    };
+    setTimeout(()=>document.addEventListener('keydown',h,true),50);
+  }
+  let fabMenu=null;
+  function closeMenu(){if(fabMenu){fabMenu.remove();fabMenu=null}}
+  fab.addEventListener('contextmenu',e=>{
+    e.preventDefault();closeMenu();
+    fabMenu=document.createElement('div');
+    fabMenu.id='ojh-menu';
+    fabMenu.innerHTML=`
+      <div class="ojh-mi" data-a="toggle">${settings.visible?'隐藏悬浮球':'显示悬浮球'}</div>
+      <div class="ojh-mi" data-a="hotkey">设置快捷键（当前 ${hkText()}）</div>
+      <div class="ojh-mi" data-a="reset">重置位置</div>
+      <div class="ojh-msep">主题颜色</div>
+      <div class="ojh-mrow">${Object.keys(THEMES).map(t=>`<span class="ojh-swatch${t===settings.theme?' on':''}" data-t="${t}" style="background:${THEMES[t][0]}" title="${t}"></span>`).join('')}</div>`;
+    document.documentElement.appendChild(fabMenu);
+    fabMenu.style.left=Math.min(e.clientX,window.innerWidth-fabMenu.offsetWidth-8)+'px';
+    fabMenu.style.top=Math.min(e.clientY,window.innerHeight-fabMenu.offsetHeight-8)+'px';
+    fabMenu.querySelectorAll('.ojh-mi').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hotkey')startHotkeyCapture();else if(a==='reset'){fab.ondblclick()}});
+    fabMenu.querySelectorAll('.ojh-swatch').forEach(sw=>sw.onclick=()=>{settings.theme=sw.dataset.t;saveSettings();applyTheme();closeMenu();showToast('主题已切换')});
+    setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(fabMenu&&!fabMenu.contains(ev.target)){closeMenu();document.removeEventListener('pointerdown',h,true)}},true),0);
+  });
+  storage.get(SETTINGS_KEY).then(v=>{if(v&&typeof v==='object'){settings=Object.assign(settings,v);applySettings();applyTheme()}}).catch(()=>{});
+  chrome.storage.onChanged.addListener((ch,area)=>{if(area==='local'&&ch[SETTINGS_KEY]&&ch[SETTINGS_KEY].newValue){settings=Object.assign(settings,ch[SETTINGS_KEY].newValue);applySettings();applyTheme()}});
+  window.addEventListener('resize',()=>{if(!settings.visible)return;const r=fab.getBoundingClientRect();if(r.right>window.innerWidth||r.bottom>window.innerHeight||r.left<0||r.top<0){fab.style.left=Math.max(0,Math.min(window.innerWidth-56,r.left))+'px';fab.style.top=Math.max(0,Math.min(window.innerHeight-56,r.top))+'px';fab.style.bottom='auto'}});
   fab.ondblclick=()=>{drawer.style.removeProperty('--ojh-x');drawer.style.removeProperty('--ojh-y');drawer.style.removeProperty('--ojh-miny');drawer.classList.remove('ojh-minimized','ojh-open');savePos({});fab.style.removeProperty('left');fab.style.removeProperty('top');fab.style.removeProperty('bottom');storage.set(FAB_POS_KEY,null).catch(()=>{});showToast('已重置位置')};
   fab.onclick=()=>{if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){refetch()} else {applyOpen(); refetch()} checkUpdate()};
   // ===== OJ 按钮可拖动（位置自动保存，双击按钮复位）=====
   const FAB_POS_KEY='ojh_fab_pos_v1';
-  storage.get(FAB_POS_KEY).then(p=>{if(p&&typeof p.x==='number'){fab.style.left=p.x+'px';fab.style.top=p.y+'px';fab.style.bottom='auto'}}).catch(()=>{});
+  storage.get(FAB_POS_KEY).then(p=>{if(p&&typeof p.x==='number'&&isFinite(p.x)){const x=Math.max(0,Math.min(window.innerWidth-56,p.x));const y=Math.max(0,Math.min(window.innerHeight-56,p.y));fab.style.left=x+'px';fab.style.top=y+'px';fab.style.bottom='auto'}}).catch(()=>{});
   let fabDrag=null,fabMoved=false;
   fab.addEventListener('pointerdown',e=>{fabDrag={mx:e.clientX,my:e.clientY,x:fab.getBoundingClientRect().left,y:fab.getBoundingClientRect().top};fab.setPointerCapture(e.pointerId)});
   fab.addEventListener('pointermove',e=>{
@@ -427,7 +481,8 @@ int main(){
     }
   });
 
-  document.addEventListener('keydown',e=>{if(e.altKey&&e.key.toLowerCase()==='g'&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
+  function matchHotkey(e){const k=(e.key||'').toLowerCase();return k===settings.hotkey.key&&e.altKey===!!settings.hotkey.alt&&e.ctrlKey===!!settings.hotkey.ctrl&&e.shiftKey===!!settings.hotkey.shift}
+  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
 
   const pill=document.createElement('div');pill.className='ojh-pill';pill.textContent='OJ 注入 OK';document.documentElement.appendChild(pill);setTimeout(()=>pill.remove(),3000);

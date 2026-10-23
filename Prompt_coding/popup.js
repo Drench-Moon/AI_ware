@@ -19,6 +19,18 @@ function setStatus(msg, ok){
   el.className = 'status ' + (ok ? 'ok' : 'err');
 }
 
+// 显示悬浮球开关（与 content.js 共享 ojh_settings_v1）
+(async () => {
+  const st = (await chrome.storage.local.get('ojh_settings_v1'))['ojh_settings_v1'] || {};
+  $('showFab').checked = st.visible !== false;
+})();
+$('showFab').addEventListener('change', async e => {
+  const st = (await chrome.storage.local.get('ojh_settings_v1'))['ojh_settings_v1'] || {};
+  st.visible = e.target.checked;
+  await chrome.storage.local.set({ ojh_settings_v1: st });
+  setStatus(e.target.checked ? '✅ 悬浮球已显示' : '悬浮球已隐藏，刷新答题页生效', e.target.checked);
+});
+
 // 加载已有配置
 (async () => {
   const cfg = await chrome.storage.local.get(null);
