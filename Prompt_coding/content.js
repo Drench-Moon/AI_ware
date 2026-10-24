@@ -157,6 +157,130 @@
   function showToast(m){toast.textContent=m;toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),2200)}
   function copyText(t){return new Promise(r=>{navigator.clipboard.writeText(t).then(()=>{showToast('已复制');r(true)}).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');showToast('已复制');r(true)}catch(_){showToast('复制失败');r(false)}document.body.removeChild(a)})})}
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  // 给单语句控制体补大括号（跳过字符串/字符/注释/预处理行）
+  function forceBraces(src){
+    const n=src.length,edits=[];
+    const lineStartOf=i=>src.lastIndexOf('\n',i-1)+1;
+    const indentOf=i=>{const m=src.slice(lineStartOf(i),i).match(/^[ \t]*/);return m?m[0]:''};
+    function skipWs(p){while(p<n&&/\s/.test(src[p]))p++;return p}
+    function skipNoise(p){for(;;){
+      if(src[p]==='/'&&src[p+1]==='/'){while(p<n&&src[p]!=='\n')p++;continue}
+      if(src[p]==='/'&&src[p+1]==='*'){const e=src.indexOf('*/',p+2);p=e<0?n:e+2;continue}
+      break}
+      return p}
+    function skipWsN(p){for(;;){const q=skipWs(p),r=skipNoise(q);if(r===q)return q;p=r}}
+    function skipStr(p){const q=src[p];p++;
+      while(p<n){if(src[p]==='\\'){p+=2;continue}if(src[p]===q)return p;if(src[p]==='\n')return p;p++}
+      return n-1}
+    function matchParen(p){let d=0;
+      for(;p<n;p++){const c=src[p];
+        if(c==='"'||c==="'"){p=skipStr(p);continue}
+        if(c==='/'&&(src[p+1]==='/'||src[p+1]==='*')){p=skipNoise(p)-1;continue}
+        if(c==='(')d++;else if(c===')'){d--;if(d===0)return p}}
+      return -1}
+    function matchBrace(p){let d=0;
+      for(;p<n;p++){const c=src[p];
+        if(c==='"'||c==="'"){p=skipStr(p);continue}
+        if(c==='/'&&(src[p+1]==='/'||src[p+1]==='*')){p=skipNoise(p)-1;continue}
+        if(c==='{')d++;else if(c==='}'){d--;if(d===0)return p}}
+      return n-1}
+    // 一条完整语句的结束位置（不含）
+    function stmtEnd(p){
+      p=skipWsN(p);if(p>=n)return -1;
+      if(src[p]==='{')return matchBrace(p)+1;
+      if(src[p]===';')return p+1;
+      const kw=/^(if|for|while|switch|do|else)\b/.exec(src.slice(p,p+8));
+      if(kw){const k=kw[1];
+        if(k==='if'||k==='for'||k==='while'||k==='switch'){
+          let q=skipWsN(p+k.length);
+          while(q<n&&src[q]!=='('){if(src[q]===';')return q+1;q++}
+          if(q>=n)return -1;
+          const e=matchParen(q);if(e<0)return -1;
+          const b=skipWsN(e+1);if(b>=n)return -1;
+          if(src[b]==='{')return matchBrace(b)+1;
+          if(src[b]===';')return b+1;
+          const end=stmtEnd(b);if(end<0)return -1;
+          if(k==='if'){const t=skipWsN(end);
+            if(src.startsWith('else',t)){
+              const tb=skipWsN(t+4);
+              if(src.startsWith('if',tb)){const e2=stmtEnd(tb);return e2<0?-1:e2}
+              if(tb<n&&src[tb]==='{')return matchBrace(tb)+1;
+              const e3=stmtEnd(tb);return e3<0?-1:e3}}
+          return end}
+        if(k==='do'){
+          const b=skipWsN(p+2);
+          const end=src[b]==='{'?matchBrace(b)+1:stmtEnd(b);
+          if(end<0)return -1;
+          const t=skipWsN(end);
+          if(src.startsWith('while',t)){
+            let q=t+5;while(q<n&&src[q]!=='(')q++;
+            const e=matchParen(q);if(e<0)return -1;
+            const s=skipWsN(e+1);return (s<n&&src[s]===';')?s+1:e+1}
+          return end}
+        if(k==='else'){
+          const tb=skipWsN(p+4);
+          if(src.startsWith('if',tb))return stmtEnd(tb);
+          if(tb<n&&src[tb]==='{')return matchBrace(tb)+1;
+          return stmtEnd(tb)}}
+      let d=0;
+      for(let q=p;q<n;q++){const ch=src[q];
+        if(ch==='"'||ch==="'"){q=skipStr(q);continue}
+        if(ch==='/'&&(src[q+1]==='/'||src[q+1]==='*')){q=skipNoise(q)-1;continue}
+        if(ch==='('||ch==='[')d++;
+        else if(ch===')'||ch===']')d--;
+        else if(ch===';'&&d<=0)return q+1;
+        else if(ch==='}')return q}
+      return -1}
+    function wrap(hdrEnd,be,headerIndent){
+      const bs=skipWsN(hdrEnd);
+      if(bs>=n)return;
+      if(src[bs]==='{'||src[bs]===';')return;
+      if(be<0||be<=bs)return;
+      if(!src.slice(hdrEnd,bs).includes('\n')){
+        edits.push({start:hdrEnd,end:bs,text:' { '});
+        edits.push({start:be,end:be,text:' }'});
+      }else{
+        edits.push({start:hdrEnd,end:hdrEnd,text:' {'});
+        edits.push({start:be,end:be,text:'\n'+headerIndent+'}'});
+      }
+    }
+    for(let i=0;i<n;i++){
+      const c=src[i];
+      if(c==='"'||c==="'"){i=skipStr(i);continue}
+      if(c==='/'&&(src[i+1]==='/'||src[i+1]==='*')){i=skipNoise(i)-1;continue}
+      if(c==='#'&&/^[ \t]*$/.test(src.slice(lineStartOf(i),i))){
+        for(;;){while(i<n&&src[i]!=='\n')i++;
+          if(i<n&&src[i]==='\n'&&src[i-1]==='\\'){i++;continue}
+          break}
+        continue}
+      if(!/[a-z]/.test(c))continue;
+      if(i>0&&/[\w$]/.test(src[i-1]))continue;
+      const kw=/^(if|for|while|else|do)\b/.exec(src.slice(i,i+6));
+      if(!kw)continue;
+      const k=kw[1],ind=indentOf(i);
+      if(k==='else'){
+        const tb=skipWsN(i+4);
+        if(src.startsWith('if',tb))continue;
+        if(tb<n&&src[tb]==='{')continue;
+        wrap(i+4,stmtEnd(tb),ind);continue}
+      if(k==='do'){
+        const b=skipWsN(i+2);
+        if(src[b]==='{')continue;
+        wrap(i+2,stmtEnd(b),ind);continue}
+      let q=i+k.length;
+      while(q<n&&src[q]!=='('){if(src[q]===';'){q=-1;break}q++}
+      if(q<0||q>=n)continue;
+      const e=matchParen(q);if(e<0)continue;
+      const bs=skipWsN(e+1);
+      if(bs>=n||src[bs]==='{'||src[bs]===';')continue;
+      wrap(e+1,stmtEnd(bs),ind);
+    }
+    if(!edits.length)return src;
+    edits.sort((a,b)=>b.start-a.start||b.end-a.end);
+    let out=src;
+    for(const ed of edits)out=out.slice(0,ed.start)+ed.text+out.slice(ed.end);
+    return out;
+  }
   async function loadH(){try{return JSON.parse((await chrome.storage.local.get(HISTORY_KEY))[HISTORY_KEY]||'[]')}catch(_){return[]}}
   async function saveH(h){await chrome.storage.local.set({[HISTORY_KEY]: JSON.stringify(h)}).catch(()=>{})}
 
@@ -306,6 +430,11 @@ int main(){
           .replace(/\bputchar\s*\(\s*(['\w][^)]*)\s*\)/g,'cout << $1');
         // '\n' → endl（换行统一用 endl，模型不听话时兜底）；用户偏好 '\n' 时跳过
         if(!prefNl) fixedAnswer = fixedAnswer.replace(/<<\s*'\\n'/g,'<< endl').replace(/<<\s*"\\n"/g,'<< endl');
+        // 单语句控制体强制补大括号（模型经常省略）
+        fixedAnswer = fixedAnswer.replace(/```([^\n]*)\n([\s\S]*?)```/g,(m,info,code)=>{
+          const isCpp = /cpp|c\+\+/i.test(info) || (!info.trim() && p.language.startsWith('C++'));
+          return isCpp ? ('```'+info+'\n'+forceBraces(code)+'```') : m;
+        });
         // 头文件使用检测只看代码块内容（避免「思路」文字里提到 sqrt/sort 等词导致误判为使用中）
         const codeBodies=[];
         fixedAnswer.replace(/```[^\n]*\n([\s\S]*?)```/g,(m,c)=>{codeBodies.push(c);return m});
