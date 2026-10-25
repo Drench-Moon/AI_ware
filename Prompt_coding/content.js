@@ -3,10 +3,9 @@
   if (window.__ojhInjected) { console.log('[OJ] 已注入，跳过'); return; }
   window.__ojhInjected = true;
 
-  // 支持列表内的 OJ 站点默认显示悬浮球；其他网站默认隐藏，按 Alt+G 召唤后显示
+  // 所有网站都注入；悬浮球默认显示，用 显示/隐藏 快捷键切换（默认 Ctrl+Alt+S），生成快捷键 Alt+G 与之互不影响
   const OJ_HOSTS = /(^|\.)(acm\.tju\.edu\.cn|leetcode\.(cn|com)|luogu\.(com\.cn|com)|codeforces\.(com|ml)|lanqiao\.cn|pintia\.cn|pta\.cn|nowcoder\.com|acwing\.com|atcoder\.jp|vjudge\.net)$/i;
   const isOJ = OJ_HOSTS.test(location.hostname);
-  let summoned = false;
 
   const HISTORY_KEY = 'oj_helper_history_v1';
   const MAX_HISTORY = 50;
@@ -583,19 +582,19 @@ int main(){
   // ===== 右键菜单设置：显示开关 / 自定义快捷键 / 主题色 =====
   const SETTINGS_KEY='ojh_settings_v1';
   const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
-  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},resetHotkey:{ctrl:true,alt:true,shift:false,key:'r'},theme:'blue',codePrefs:''};
+  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{ctrl:true,alt:true,shift:false,key:'s'},resetHotkey:{ctrl:true,alt:true,shift:false,key:'r'},theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
   function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
-  function applySettings(){const show=(settings.visible&&isOJ)||summoned;fab.style.display=show?'flex':'none';if(show)clampFab()}
+  function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
   function applyTheme(){const t=THEMES[settings.theme]||THEMES.blue;document.documentElement.style.setProperty('--ojh-c1',t[0]);document.documentElement.style.setProperty('--ojh-c2',t[1])}
-  function toggleFab(){settings.visible=!settings.visible;if(!settings.visible)summoned=false;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键球可再次隐藏':'悬浮球已隐藏，按 '+hkText()+' 会自动重新显示并打开面板')}
+  function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示':'悬浮球已隐藏，按 '+hkTextOf(settings.toggleHotkey)+' 可再次显示')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
   let hkDialog=null,hkCapture=null;
   function cancelHkCapture(){if(hkCapture){document.removeEventListener('keydown',hkCapture.kd,true);hkCapture=null}}
   function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
-  function hkLabel(field){return field==='hotkey'?hkTextOf(settings.hotkey):(settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）')}
+  function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{ctrl:true,alt:true,shift:false,key:'s'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）'}
   function startHkCapture(field,btn){
     cancelHkCapture();
     const lab=btn.closest('.ojh-hkrow').querySelector('.ojh-hkl');
@@ -652,7 +651,8 @@ int main(){
       <div class="ojh-hkhd"><span>⌨ 快捷键设置</span><span class="ojh-hkclose" id="ojh-hkclose">✕</span></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('hotkey')}</div><div class="ojh-hkd">按此键直接抓取当前题目并生成解答</div></div><button class="ojh-hkbtn" data-f="hotkey">修改</button></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="ojh-hkbtn" data-f="resetHotkey">修改</button><button class="ojh-hkbtn" id="ojh-hknone">设为无</button></div></div>
-      <div class="ojh-hktip">点「修改」后按键盘组合即可（需含 Ctrl/Alt/Shift 至少一个，Esc 取消）；复位快捷键可「设为无」彻底禁用。生成快捷键（Alt+G）不支持设为无——悬浮球隐藏时要靠它唤醒。</div>`;
+      <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('toggleHotkey')}</div><div class="ojh-hkd">显示/隐藏悬浮球：按一次隐藏，再按一次显示</div></div><button class="ojh-hkbtn" data-f="toggleHotkey">修改</button></div>
+      <div class="ojh-hktip">点「修改」后按键盘组合即可（需含 Ctrl/Alt/Shift 至少一个，Esc 取消）；复位快捷键可「设为无」彻底禁用。生成快捷键与显示/隐藏快捷键互相独立：悬浮球隐藏时生成快捷键仍能生成代码，但不会把悬浮球带出来。</div>`;
     attachOjh(hkDialog);
     placeDialog(hkDialog);makeDraggable(hkDialog);
     hkDialog.querySelector('#ojh-hkclose').onclick=closeHkDialog;
@@ -695,6 +695,7 @@ int main(){
         <div class="ojh-submenu">
           <div class="ojh-mi" data-a="hotkey">生成快捷键：${hkText()}</div>
           <div class="ojh-mi" data-a="reshotkey">复位快捷键：${hkLabel('resetHotkey')}</div>
+          <div class="ojh-mi" data-a="togglehotkey">显示/隐藏快捷键：${hkLabel('toggleHotkey')}</div>
         </div>
       </div>
       <div class="ojh-mi" data-a="prefs">✏ 代码偏好${settings.codePrefs?'（已设置）':''}</div>
@@ -706,14 +707,14 @@ int main(){
     fabMenu.style.top=Math.min(e.clientY,window.innerHeight-fabMenu.offsetHeight-8)+'px';
     const sub=fabMenu.querySelector('.ojh-msub');
     sub.addEventListener('mouseenter',()=>{const sm=sub.querySelector('.ojh-submenu');requestAnimationFrame(()=>{const r=sm.getBoundingClientRect();if(r.right>window.innerWidth-8){sm.style.left='auto';sm.style.right='4px'}else{sm.style.left='calc(100% - 4px)';sm.style.right='auto'}})});
-    fabMenu.querySelectorAll('.ojh-mi[data-a]').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hotkey'||a==='reshotkey'){openHkDialog();const btns=hkDialog.querySelectorAll('.ojh-hkbtn');startHkCapture(a==='hotkey'?'hotkey':'resetHotkey',a==='hotkey'?btns[0]:btns[1])}else if(a==='prefs')openPrefsDialog();else if(a==='reset'){resetFab()}});
+    fabMenu.querySelectorAll('.ojh-mi[data-a]').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hotkey'||a==='reshotkey'||a==='togglehotkey'){const map={hotkey:'hotkey',reshotkey:'resetHotkey',togglehotkey:'toggleHotkey'};const f=map[a];openHkDialog();const btn=hkDialog.querySelector('.ojh-hkbtn[data-f="'+f+'"]');if(btn)startHkCapture(f,btn)}else if(a==='prefs')openPrefsDialog();else if(a==='reset'){resetFab()}});
     fabMenu.querySelectorAll('.ojh-swatch').forEach(sw=>sw.onclick=()=>{settings.theme=sw.dataset.t;saveSettings();applyTheme();closeMenu();showToast('主题已切换')});
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(fabMenu&&!fabMenu.contains(ev.target)){closeMenu();document.removeEventListener('pointerdown',h,true)}},true),0);
   });
   storage.get(SETTINGS_KEY).then(v=>{if(v&&typeof v==='object'){if(!v.resetHotkey)v.resetHotkey={ctrl:true,alt:true,shift:false,key:'r'};settings=Object.assign(settings,v);applySettings();applyTheme();fab.title='OJ 助手 ('+hkText()+')'}}).catch(()=>{});
   chrome.storage.onChanged.addListener((ch,area)=>{if(area==='local'&&ch[SETTINGS_KEY]&&ch[SETTINGS_KEY].newValue){settings=Object.assign(settings,ch[SETTINGS_KEY].newValue);applySettings();applyTheme()}});
   // 工具栏弹窗点「在当前网页启用」时，让非 OJ 站点也把悬浮球召唤出来
-  chrome.runtime.onMessage.addListener(m=>{if(m&&m.type==='OJ_SUMMON'){summoned=true;applySettings()}});
+  chrome.runtime.onMessage.addListener(m=>{if(m&&m.type==='OJ_SUMMON'){settings.visible=true;applySettings();saveSettings()}});
   window.addEventListener('resize',()=>{if(!settings.visible)return;const r=fab.getBoundingClientRect();if(r.right>window.innerWidth||r.bottom>window.innerHeight||r.left<0||r.top<0){fab.style.left=Math.max(0,Math.min(window.innerWidth-56,r.left))+'px';fab.style.top=Math.max(0,Math.min(window.innerHeight-56,r.top))+'px';fab.style.bottom='auto'}});
   fab.onclick=e=>{if(e.shiftKey)return;if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){drawer.classList.remove('ojh-open')} else {applyOpen(); refetch(); checkUpdate()}};
   // ===== OJ 按钮可拖动（位置自动保存，Ctrl+Alt+R 复位）=====
@@ -820,7 +821,10 @@ int main(){
   // 复位快捷键（键盘组合，默认 Ctrl+Alt+R；设为"无"则彻底禁用）
   document.addEventListener('keydown',e=>{const rhk=settings.resetHotkey;if(rhk&&rhk.key!=='none'&&!e.repeat&&combo(e,rhk)){e.preventDefault();resetFab()}});
   fab.ondblclick=e=>{showToast('复位快捷键：'+hkLabel('resetHotkey')+'（右键悬浮球可修改）')};
-  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){summoned=true;applySettings();e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
+  // 生成快捷键：只负责抓题生成，不改变悬浮球显示状态（两者完全隔离）
+  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
+  // 显示/隐藏快捷键：默认 Ctrl+Alt+S，按一次隐藏、再按一次显示
+  document.addEventListener('keydown',e=>{const thk=settings.toggleHotkey;if(thk&&thk.key!=='none'&&!e.repeat&&combo(e,thk)){e.preventDefault();toggleFab()}});
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
 
   if(isOJ){const pill=document.createElement('div');pill.className='ojh-pill';pill.textContent='OJ 注入 OK';document.documentElement.appendChild(pill);setTimeout(()=>pill.remove(),3000);}
