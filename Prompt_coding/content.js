@@ -129,17 +129,28 @@
 
   // 页面进入全屏（F11 或 requestFullscreen）时，把扩展 UI 移入全屏容器，否则会被浏览器隐藏
   const ojhHome = [];
-  document.addEventListener('fullscreenchange', () => {
+  function mountOjhUI() {
     const fe = document.fullscreenElement;
     if (fe) {
       Array.from(document.documentElement.children).forEach(el => {
-        if (el.id && el.id.indexOf('ojh-') === 0) { ojhHome.push(el); fe.appendChild(el); }
+        if (el.id && el.id.indexOf('ojh-') === 0 && el.parentElement !== fe) { ojhHome.push(el); fe.appendChild(el); }
       });
     } else {
       ojhHome.forEach(el => document.documentElement.appendChild(el));
       ojhHome.length = 0;
     }
-  });
+  }
+  document.addEventListener('fullscreenchange', mountOjhUI);
+  // 后创建的 UI（右键菜单、设置弹窗）直接挂到全屏容器里
+  function attachOjh(el) {
+    const fe = document.fullscreenElement;
+    if (fe) { ojhHome.push(el); fe.appendChild(el); }
+    else { document.documentElement.appendChild(el); }
+  }
+  // 注入时页面已经处于全屏（先开全屏再点「在当前网页启用」），立即挂载一次
+  mountOjhUI();
+  // 部分系统用 iframe/容器全屏或监听 media query，兜底再挂载一次
+  setTimeout(mountOjhUI, 800);
 
   // ===== 新版本检查：有更新时 OJ 按钮加红点 + 面板顶部显示横幅（注入时 + 每次打开面板时都会查）=====
   function checkUpdate(){
@@ -612,7 +623,7 @@ int main(){
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('hotkey')}</div><div class="ojh-hkd">按此键直接抓取当前题目并生成解答</div></div><button class="ojh-hkbtn" data-f="hotkey">修改</button></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="ojh-hkbtn" data-f="resetHotkey">修改</button><button class="ojh-hkbtn" id="ojh-hknone">设为无</button></div></div>
       <div class="ojh-hktip">点「修改」后按键盘组合即可（需含 Ctrl/Alt/Shift 至少一个，Esc 取消）；复位快捷键可「设为无」彻底禁用。生成快捷键（Alt+G）不支持设为无——悬浮球隐藏时要靠它唤醒。</div>`;
-    document.documentElement.appendChild(hkDialog);
+    attachOjh(hkDialog);
     placeDialog(hkDialog);makeDraggable(hkDialog);
     hkDialog.querySelector('#ojh-hkclose').onclick=closeHkDialog;
     hkDialog.querySelector('#ojh-hknone').onclick=()=>{cancelHkCapture();settings.resetHotkey={key:'none'};saveSettings();const lab=hkDialog.querySelectorAll('.ojh-hkl')[1];lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent='无';showToast('复位快捷键已设为无')};
@@ -633,7 +644,7 @@ int main(){
         <textarea id="ojh-preftext" placeholder="例如：&#10;· 数据量大时输出换行用 '\\n'，比 endl 快（endl 每次都刷新缓冲区）&#10;· 多组数据大量输出时务必用 '\\n'&#10;· 语句块不需要加大括号（覆盖默认规则）&#10;· 不要 ios::sync_with_stdio(false)"></textarea>
         <div class="ojh-prefbtns"><button class="ojh-hkbtn" id="ojh-prefsave">保存偏好</button><button class="ojh-hkbtn" id="ojh-prefclear">清空恢复默认</button><span id="ojh-prefst" style="font-size:11px;color:#059669"></span></div>
       </div>`;
-    document.documentElement.appendChild(prefDialog);
+    attachOjh(prefDialog);
     placeDialog(prefDialog);makeDraggable(prefDialog);
     prefDialog.querySelector('#ojh-preftext').value=settings.codePrefs||'';
     prefDialog.querySelector('#ojh-prefclose').onclick=closePrefDialog;
@@ -660,7 +671,7 @@ int main(){
       <div class="ojh-mi" data-a="reset">重置位置</div>
       <div class="ojh-msep">主题颜色</div>
       <div class="ojh-mrow">${Object.keys(THEMES).map(t=>`<span class="ojh-swatch${t===settings.theme?' on':''}" data-t="${t}" style="background:${THEMES[t][0]}" title="${t}"></span>`).join('')}</div>`;
-    document.documentElement.appendChild(fabMenu);
+    attachOjh(fabMenu);
     fabMenu.style.left=Math.min(e.clientX,window.innerWidth-fabMenu.offsetWidth-8)+'px';
     fabMenu.style.top=Math.min(e.clientY,window.innerHeight-fabMenu.offsetHeight-8)+'px';
     const sub=fabMenu.querySelector('.ojh-msub');
