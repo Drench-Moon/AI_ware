@@ -424,14 +424,14 @@ int main(){
       const d=await (async ()=>{
   for(let attempt=0; attempt<3; attempt++){
     try{
-      if(!chrome.runtime||!chrome.runtime.sendMessage) throw new Error('EXT_RELOAD');
+      if(!chrome.runtime||!chrome.runtime.id||!chrome.runtime.sendMessage) throw new Error('EXT_RELOAD');
       return await new Promise((res,rej)=>{
         try{chrome.runtime.sendMessage({type:'OJ_CHAT',payload:p},r=>{const le=chrome.runtime.lastError; if(le) rej(new Error(le.message)); else res(r||{});});}catch(e){rej(e);}
       });
     }catch(e){
       const isConnectErr = (e.message||'').includes('Receiving end')||(e.message||'').includes('Could not establish');
       if(isConnectErr && attempt<2){ await new Promise(r=>setTimeout(r,600)); continue; }
-      if(e.message==='EXT_RELOAD'){ showToast('扩展已更新，请刷新答题页 (F5)'); throw new Error('扩展连接丢失'); }
+      if(e.message==='EXT_RELOAD'||/Extension context invalidated/i.test(e.message||'')){ showToast('扩展已更新，请按 F5 刷新答题页'); throw new Error('扩展已更新，请按 F5 刷新页面后重试'); }
       throw e;
     }
   }
