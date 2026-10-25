@@ -78,6 +78,22 @@
     .ojh-prefbody textarea{width:100%;height:110px;resize:vertical;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font:12px/1.5 system-ui;box-sizing:border-box}
     .ojh-prefbody textarea:focus{outline:none;border-color:var(--ojh-c1,#2563eb)}
     .ojh-prefbtns{display:flex;gap:8px;align-items:center;margin-top:8px}
+    /* 隔离宿主页面样式：部分考试/后台系统有全局 input/select/textarea 深色规则，会把文字变成白色看不见 */
+    #ojh-drawer input,#ojh-drawer select,#ojh-drawer textarea{
+      color:#0f172a !important;background:#fff !important;background-color:#fff !important;
+      -webkit-text-fill-color:#0f172a !important;opacity:1 !important;
+      border:1px solid #e2e8f0 !important;border-radius:6px !important;
+      font-family:inherit !important;font-size:13px !important;line-height:1.5 !important;
+      text-shadow:none !important;box-shadow:none !important;
+    }
+    #ojh-drawer input::placeholder,#ojh-drawer textarea::placeholder{
+      color:#94a3b8 !important;-webkit-text-fill-color:#94a3b8 !important;opacity:1 !important;
+    }
+    #ojh-drawer select option{color:#0f172a !important;background:#fff !important}
+    #ojh-drawer input:focus,#ojh-drawer select:focus,#ojh-drawer textarea:focus{
+      outline:none !important;border-color:var(--ojh-c1,#2563eb) !important;box-shadow:none !important;
+    }
+    #ojh-drawer,#ojh-drawer *{-webkit-text-fill-color:currentColor}
   `;
   (document.head||document.documentElement).appendChild(style);
 
@@ -377,18 +393,26 @@ int main(){
 
   const $=id=>drawer.querySelector(id);
   const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
-  function refetch(){const e=extract();title.value=e.title||'';problem.value=e.text||'';showToast('已抓取 '+problem.value.length+' 字')}
+  function refetch(){
+    const e=extract();
+    const fresh=(e.text||'').trim(), old=problem.value.trim();
+    // 陌生平台可能只抓到导航/页脚，若没抓到有效题面且用户已手动粘贴，则保留原内容，避免被覆盖
+    if(fresh.length<20 && old.length>=20){showToast('未抓到新题面，已保留当前内容');return}
+    title.value=e.title||title.value||'';
+    problem.value=e.text||'';
+    showToast('已抓取 '+problem.value.length+' 字');
+  }
   $('#ojh-refetch').onclick=refetch;
   async function generate(){refetch();await new Promise(r=>setTimeout(r,300));if(problem.value.length<20){showToast('题目太短，请先抓取');return}const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};window.__ojhCur=p;await copyText(buildPrompt(p));hint.style.display='block';answer.value=''}
   $('#ojh-gen').onclick=generate;
   $('#ojh-auto').onclick=async()=>{
     if(window.__ojhBusy){showToast('正在生成中，请稍候');return}
-    window.__ojhBusy=true;
     const btn=$('#ojh-auto');
     refetch();
     const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};
-    if(p.problem.length<20){showToast('题目太短，请先抓取');return}
-    window.__ojhCur=p;
+    // 先校验再进入「生成中」状态，避免题面为空时按钮永久卡在生成中
+    if(p.problem.length<20){showToast('没抓到题面，请在下方手动粘贴题目后重试');problem.focus();return}
+    window.__ojhBusy=true;window.__ojhCur=p;
     btn.disabled=true;btn.textContent='生成中…';hint.style.display='block';
     hint.innerHTML='<b>正在调用模型…</b><br>结果会直接显示在下方，全程不用切窗口。';
     try{
