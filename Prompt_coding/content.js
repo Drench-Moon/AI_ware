@@ -592,13 +592,22 @@ int main(){
   function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示':'悬浮球已隐藏，按 '+hkTextOf(settings.toggleHotkey)+' 可再次显示')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
   let hkDialog=null,hkCapture=null;
-  function cancelHkCapture(){if(hkCapture){document.removeEventListener('keydown',hkCapture.kd,true);hkCapture=null}}
+  function cancelHkCapture(){
+    if(hkCapture){
+      document.removeEventListener('keydown',hkCapture.kd,true);
+      // 取消时把标签还原成「真实键位」，否则下次点「修改」会把 "⌨ 当前：" 叠加下去
+      const lab=hkCapture.lab;
+      if(lab){lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=hkCapture.orig}
+      hkCapture=null;
+    }
+  }
   function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
   function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'h'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）'}
   function startHkCapture(field,btn){
     cancelHkCapture();
     const lab=btn.closest('.ojh-hkrow').querySelector('.ojh-hkl');
-    const oldText=lab.textContent;
+    // 始终以设置里的真实键位为基准，而不是读取可能已被装饰过的标签文本
+    const oldText=hkLabel(field);
     lab.classList.remove('ojh-hkerr');
     lab.classList.add('ojh-capturing');
     lab.textContent='⌨ 当前：'+oldText+' ｜ 请按新组合键…（Esc 取消）';
@@ -607,7 +616,7 @@ int main(){
     const kd=e=>{
       if(e.target&&e.target.closest&&e.target.closest('textarea,input'))return;
       e.preventDefault();e.stopPropagation();
-      if(e.key==='Escape'){done();lab.classList.remove('ojh-capturing');lab.textContent=oldText;return}
+      if(e.key==='Escape'){done();lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=oldText;return}
       const k=e.key.toLowerCase();
       if(['control','alt','shift','meta'].includes(k)){
         const pre=(e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'');
@@ -617,7 +626,7 @@ int main(){
       if(!(e.ctrlKey||e.altKey||e.shiftKey)){lab.classList.add('ojh-hkerr');lab.textContent='⚠ 纯字母/数字键在打字时会误触发，请至少带上 Ctrl/Alt/Shift（当前：'+oldText+'）';return}
       apply({alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:k});
     };
-    hkCapture={kd};
+    hkCapture={kd,lab,orig:oldText};
     setTimeout(()=>{document.addEventListener('keydown',kd,true)},50);
   }
   // 弹窗定位：悬浮球右下方，绝不遮挡悬浮球；溢出时镜像到左侧/上方
