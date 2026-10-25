@@ -19,7 +19,37 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 /* ===== 新版本检查（对比 GitHub 仓库里的 manifest.json）===== */
 const UPDATE_KEY = 'ojh_update_info';
-const REMOTE_MANIFEST = 'https://raw.githubusercontent.com/Drench-Moon/AI_ware/main/Prompt_coding/manifest.json';
+vector<int> a = {1, 2, 3};
+vector<int> b = {4, 5};
+
+a.swap(b);            // a={4,5}, b={1,2,3}
+cout << (a == b);     // 0（false）
+cout << (a < b);      // 1（true，因为 4 > 2 的字典序… 这里 4>2 所以 false，注意判断）vector<int> a = {1, 2, 3};
+vector<int> b = {4, 5};
+
+a.swap(b);            // a={4,5}, b={1,2,3}
+cout << (a == b);     // 0（false）
+cout << (a < b);      // 1（true，因为 4 > 2 的字典序… 这里 4>2 所以 false，注意判断）vector<int> a = {1, 2, 3};
+vector<int> b = {4, 5};
+
+a.swap(b);            // a={4,5}, b={1,2,3}
+cout << (a == b);     // 0（false）
+cout << (a < b);      // 1（true，因为 4 > 2 的字典序… 这里 4>2 所以 false，注意判断）vector<int> a = {1, 2, 3};
+vector<int> b = {4, 5};
+
+a.swap(b);            // a={4,5}, b={1,2,3}
+cout << (a == b);     // 0（false）
+cout << (a < b);      // 1（true，因为 4 > 2 的字典序… 这里 4>2 所以 false，注意判断）vector<int> a = {1, 2, 3};
+vector<int> b = {4, 5};
+
+a.swap(b);            // a={4,5}, b={1,2,3}
+cout << (a == b);     // 0（false）
+cout << (a < b);      // 1（true，因为 4 > 2 的字典序… 这里 4>2 所以 false，注意判断）vector<int> a = {1, 2, 3};
+vector<int> b = {4, 5};
+
+a.swap(b);            // a={4,5}, b={1,2,3}
+cout << (a == b);     // 0（false）
+cout << (a < b);      // 1（true，因为 4 > 2 的字典序… 这里 4>2 所以 false，注意判断）const REMOTE_MANIFEST = 'https://raw.githubusercontent.com/Drench-Moon/AI_ware/main/Prompt_coding/manifest.json';
 const RELEASE_URL = 'https://github.com/Drench-Moon/AI_ware/releases/latest';
 const RELEASE_ZIP = 'https://github.com/Drench-Moon/AI_ware/releases/latest/download/Prompt_coding.zip';
 

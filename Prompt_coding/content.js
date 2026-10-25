@@ -127,6 +127,20 @@
   const toast = document.createElement('div'); toast.id = 'ojh-toast';
   document.documentElement.appendChild(toast);
 
+  // 页面进入全屏（F11 或 requestFullscreen）时，把扩展 UI 移入全屏容器，否则会被浏览器隐藏
+  const ojhHome = [];
+  document.addEventListener('fullscreenchange', () => {
+    const fe = document.fullscreenElement;
+    if (fe) {
+      Array.from(document.documentElement.children).forEach(el => {
+        if (el.id && el.id.indexOf('ojh-') === 0) { ojhHome.push(el); fe.appendChild(el); }
+      });
+    } else {
+      ojhHome.forEach(el => document.documentElement.appendChild(el));
+      ojhHome.length = 0;
+    }
+  });
+
   // ===== 新版本检查：有更新时 OJ 按钮加红点 + 面板顶部显示横幅（注入时 + 每次打开面板时都会查）=====
   function checkUpdate(){
     if(!chrome.runtime||!chrome.runtime.sendMessage) return;

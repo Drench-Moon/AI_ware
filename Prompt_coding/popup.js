@@ -78,10 +78,32 @@ $('save').addEventListener('click', async () => {
       s.className = 'status ok';
       s.style.cursor = 'pointer';
       s.style.textDecoration = 'underline';
-      s.onclick = () => window.open(r.info.zipUrl || 'https://github.com/Drench-Moon/AI_ware/archive/refs/heads/main.zip', '_blank');
+      s.onclick = () => window.open(r.info.zipUrl || 'https://github.com/Drench-Moon/AI_ware/releases/latest/download/Prompt_coding.zip', '_blank');
     }
   } catch (_) {}
 })();
+
+// 在当前网页手动启用（不在内置支持列表里的考试/自建平台）
+$('inject').addEventListener('click', async () => {
+  setStatus('⏳ 注入中...', false);
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) { setStatus('❌ 找不到当前标签页', false); return; }
+    if (!/^https?:/i.test(tab.url || '')) { setStatus('❌ 只能在 http/https 网页上启用', false); return; }
+    const probe = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => !!window.__ojhInjected
+    });
+    if (probe && probe[0] && probe[0].result) {
+      setStatus('✅ 本页已启用，看左下角 OJ 球', true);
+      return;
+    }
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    setStatus('✅ 已启用，看左下角 OJ 球', true);
+  } catch (e) {
+    setStatus('❌ ' + (e.message || e), false);
+  }
+});
 
 // 测试连通性
 $('test').addEventListener('click', async () => {
