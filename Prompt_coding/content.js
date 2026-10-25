@@ -3,7 +3,7 @@
   if (window.__ojhInjected) { console.log('[OJ] 已注入，跳过'); return; }
   window.__ojhInjected = true;
 
-  // 所有网站都注入；悬浮球默认显示，用 显示/隐藏 快捷键切换（默认 Alt+H），生成快捷键 Alt+G 与之互不影响
+  // 所有网站都注入；悬浮球默认显示，用 显示/隐藏 快捷键切换（默认 Alt+S），生成快捷键 Alt+G 与之互不影响
   const OJ_HOSTS = /(^|\.)(acm\.tju\.edu\.cn|leetcode\.(cn|com)|luogu\.(com\.cn|com)|codeforces\.(com|ml)|lanqiao\.cn|pintia\.cn|pta\.cn|nowcoder\.com|acwing\.com|atcoder\.jp|vjudge\.net)$/i;
   const isOJ = OJ_HOSTS.test(location.hostname);
 
@@ -582,7 +582,7 @@ int main(){
   // ===== 右键菜单设置：显示开关 / 自定义快捷键 / 主题色 =====
   const SETTINGS_KEY='ojh_settings_v1';
   const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
-  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'h'},resetHotkey:{ctrl:true,alt:true,shift:false,key:'r'},theme:'blue',codePrefs:''};
+  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},resetHotkey:{ctrl:true,alt:true,shift:false,key:'r'},theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
@@ -602,7 +602,7 @@ int main(){
     }
   }
   function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
-  function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'h'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）'}
+  function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'s'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）'}
   function startHkCapture(field,btn){
     cancelHkCapture();
     const lab=btn.closest('.ojh-hkrow').querySelector('.ojh-hkl');
@@ -723,9 +723,10 @@ int main(){
   storage.get(SETTINGS_KEY).then(v=>{
     if(v&&typeof v==='object'){
       if(!v.resetHotkey)v.resetHotkey={ctrl:true,alt:true,shift:false,key:'r'};
-      // 旧版默认显示/隐藏键是 Ctrl+Alt+S，升级后统一迁移到新的默认 Alt+H（用户自定义过的键位保持不变）
+      // 旧版默认显示/隐藏键依次是 Ctrl+Alt+S、Alt+H，升级后统一迁移到新的默认 Alt+S（用户自定义过的键位保持不变）
       const th=v.toggleHotkey;
-      if(!th||(th.key==='s'&&th.ctrl&&th.alt&&!th.shift))v.toggleHotkey={alt:true,ctrl:false,shift:false,key:'h'};
+      const isOldDefault=th&&!th.shift&&((th.key==='s'&&th.ctrl&&th.alt)||(th.key==='h'&&th.alt&&!th.ctrl));
+      if(!th||isOldDefault)v.toggleHotkey={alt:true,ctrl:false,shift:false,key:'s'};
       settings=Object.assign(settings,v);applySettings();applyTheme();fab.title='OJ 助手 ('+hkText()+')'
     }
   }).catch(()=>{});
