@@ -3,6 +3,11 @@
   if (window.__ojhInjected) { console.log('[OJ] 已注入，跳过'); return; }
   window.__ojhInjected = true;
 
+  // 支持列表内的 OJ 站点默认显示悬浮球；其他网站默认隐藏，按 Alt+G 召唤后显示
+  const OJ_HOSTS = /(^|\.)(acm\.tju\.edu\.cn|leetcode\.(cn|com)|luogu\.(com\.cn|com)|codeforces\.(com|ml)|lanqiao\.cn|pintia\.cn|pta\.cn|nowcoder\.com|acwing\.com|atcoder\.jp|vjudge\.net)$/i;
+  const isOJ = OJ_HOSTS.test(location.hostname);
+  let summoned = false;
+
   const HISTORY_KEY = 'oj_helper_history_v1';
   const MAX_HISTORY = 50;
 
@@ -193,7 +198,8 @@
       });
     }catch(_){}
   }
-  checkUpdate();
+  // 仅在支持的 OJ 站点自动检查更新，避免在任意网页上反复请求 GitHub
+  if(isOJ)checkUpdate();
 
   function showToast(m){toast.textContent=m;toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),2200)}
   function copyText(t){return new Promise(r=>{navigator.clipboard.writeText(t).then(()=>{showToast('已复制');r(true)}).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');showToast('已复制');r(true)}catch(_){showToast('复制失败');r(false)}document.body.removeChild(a)})})}
@@ -582,9 +588,9 @@ int main(){
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
   function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
-  function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
+  function applySettings(){const show=(settings.visible&&isOJ)||summoned;fab.style.display=show?'flex':'none';if(show)clampFab()}
   function applyTheme(){const t=THEMES[settings.theme]||THEMES.blue;document.documentElement.style.setProperty('--ojh-c1',t[0]);document.documentElement.style.setProperty('--ojh-c2',t[1])}
-  function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键球可再次隐藏':'悬浮球已隐藏，按 '+hkText()+' 会自动重新显示并打开面板')}
+  function toggleFab(){settings.visible=!settings.visible;if(!settings.visible)summoned=false;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示，右键球可再次隐藏':'悬浮球已隐藏，按 '+hkText()+' 会自动重新显示并打开面板')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
   let hkDialog=null,hkCapture=null;
   function cancelHkCapture(){if(hkCapture){document.removeEventListener('keydown',hkCapture.kd,true);hkCapture=null}}
@@ -706,6 +712,8 @@ int main(){
   });
   storage.get(SETTINGS_KEY).then(v=>{if(v&&typeof v==='object'){if(!v.resetHotkey)v.resetHotkey={ctrl:true,alt:true,shift:false,key:'r'};settings=Object.assign(settings,v);applySettings();applyTheme();fab.title='OJ 助手 ('+hkText()+')'}}).catch(()=>{});
   chrome.storage.onChanged.addListener((ch,area)=>{if(area==='local'&&ch[SETTINGS_KEY]&&ch[SETTINGS_KEY].newValue){settings=Object.assign(settings,ch[SETTINGS_KEY].newValue);applySettings();applyTheme()}});
+  // 工具栏弹窗点「在当前网页启用」时，让非 OJ 站点也把悬浮球召唤出来
+  chrome.runtime.onMessage.addListener(m=>{if(m&&m.type==='OJ_SUMMON'){summoned=true;applySettings()}});
   window.addEventListener('resize',()=>{if(!settings.visible)return;const r=fab.getBoundingClientRect();if(r.right>window.innerWidth||r.bottom>window.innerHeight||r.left<0||r.top<0){fab.style.left=Math.max(0,Math.min(window.innerWidth-56,r.left))+'px';fab.style.top=Math.max(0,Math.min(window.innerHeight-56,r.top))+'px';fab.style.bottom='auto'}});
   fab.onclick=e=>{if(e.shiftKey)return;if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){drawer.classList.remove('ojh-open')} else {applyOpen(); refetch(); checkUpdate()}};
   // ===== OJ 按钮可拖动（位置自动保存，Ctrl+Alt+R 复位）=====
@@ -812,10 +820,10 @@ int main(){
   // 复位快捷键（键盘组合，默认 Ctrl+Alt+R；设为"无"则彻底禁用）
   document.addEventListener('keydown',e=>{const rhk=settings.resetHotkey;if(rhk&&rhk.key!=='none'&&!e.repeat&&combo(e,rhk)){e.preventDefault();resetFab()}});
   fab.ondblclick=e=>{showToast('复位快捷键：'+hkLabel('resetHotkey')+'（右键悬浮球可修改）')};
-  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){if(!settings.visible){settings.visible=true;applySettings();saveSettings()}e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
+  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){summoned=true;applySettings();e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
 
-  const pill=document.createElement('div');pill.className='ojh-pill';pill.textContent='OJ 注入 OK';document.documentElement.appendChild(pill);setTimeout(()=>pill.remove(),3000);
+  if(isOJ){const pill=document.createElement('div');pill.className='ojh-pill';pill.textContent='OJ 注入 OK';document.documentElement.appendChild(pill);setTimeout(()=>pill.remove(),3000);}
   // 根据用户配置的 API 更新标签（默认"AI 返回的回答"）
   (async ()=>{
     try{

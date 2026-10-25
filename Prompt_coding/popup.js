@@ -95,10 +95,12 @@ $('inject').addEventListener('click', async () => {
       func: () => !!window.__ojhInjected
     });
     if (probe && probe[0] && probe[0].result) {
+      chrome.tabs.sendMessage(tab.id, { type: 'OJ_SUMMON' }).catch(() => {});
       setStatus('✅ 本页已启用，看左下角 OJ 球', true);
       return;
     }
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    chrome.tabs.sendMessage(tab.id, { type: 'OJ_SUMMON' }).catch(() => {});
     setStatus('✅ 已启用，看左下角 OJ 球', true);
   } catch (e) {
     setStatus('❌ ' + (e.message || e), false);
