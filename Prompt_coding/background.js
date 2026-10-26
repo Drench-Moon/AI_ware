@@ -19,7 +19,14 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 /* ===== 新版本检查（对比 GitHub 仓库里的 manifest.json）===== */
 const UPDATE_KEY = 'ojh_update_info';
-const REMOTE_MANIFEST = 'https://raw.githubusercontent.com/Drench-Moon/AI_ware/main/Prompt_coding/manifest.json';
+/* 多源兜底：部分网络/加速器会把 raw.githubusercontent.com 解析到本机回环地址，
+   Chrome 的私有网络访问限制会直接拦掉，所以优先走 CDN 镜像 */
+const MANIFEST_SOURCES = [
+  'https://cdn.jsdelivr.net/gh/Drench-Moon/AI_ware@main/Prompt_coding/manifest.json',
+  'https://fastly.jsdelivr.net/gh/Drench-Moon/AI_ware@main/Prompt_coding/manifest.json',
+  'https://raw.githubusercontent.com/Drench-Moon/AI_ware/main/Prompt_coding/manifest.json',
+];
+const API_LATEST = 'https://api.github.com/repos/Drench-Moon/AI_ware/releases/latest';
 const RELEASE_URL = 'https://github.com/Drench-Moon/AI_ware/releases/latest';
 const RELEASE_ZIP = 'https://github.com/Drench-Moon/AI_ware/releases/latest/download/Prompt_coding.zip';
 
@@ -33,16 +40,37 @@ function cmpVer(a, b) {
   return 0;
 }
 
+async function fetchRemoteVersion() {
+  for (const url of MANIFEST_SOURCES) {
+    try {
+      const resp = await fetch(url + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!resp.ok) continue;
+      const j = await resp.json();
+      if (j && j.version) return String(j.version);
+    } catch (_) {}
+  }
+  try {
+    const resp = await fetch(API_LATEST + '?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Accept': 'application/vnd.github+json' },
+    });
+    if (resp.ok) {
+      const j = await resp.json();
+      if (j && j.tag_name) return String(j.tag_name).replace(/^v/, '');
+    }
+  } catch (_) {}
+  return null;
+}
+
 async function checkForUpdate() {
   try {
-    const resp = await fetch(REMOTE_MANIFEST + '?t=' + Date.now(), { cache: 'no-store' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const remote = await resp.json();
+    const remoteVersion = await fetchRemoteVersion();
+    if (!remoteVersion) return null;
     const local = chrome.runtime.getManifest().version;
     const info = {
       local,
-      latest: remote.version || local,
-      hasUpdate: cmpVer(remote.version || local, local) > 0,
+      latest: remoteVersion,
+      hasUpdate: cmpVer(remoteVersion, local) > 0,
       url: RELEASE_URL,
       zipUrl: RELEASE_ZIP,
       checkedAt: Date.now(),
