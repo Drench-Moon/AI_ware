@@ -14,7 +14,7 @@
   style.textContent = `
     #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ojh-c1,#2563eb),var(--ojh-c2,#1d4ed8));color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
     #ojh-fab:hover{transform:scale(1.06)}
-    #ojh-drawer{position:fixed;top:0;left:0;width:min(480px,90vw);height:100vh;z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:320px;min-height:300px}
+    #ojh-drawer{position:fixed;top:0;left:0;width:min(320px,60vw);height:70vh;z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:240px;min-height:200px}
     #ojh-drawer.ojh-open{transform:translate3d(var(--ojh-x,0),var(--ojh-y,0),0) !important;transition:none}
     #ojh-drawer.ojh-open.from-left{transform:translate3d(0,0,0)}
     #ojh-resize{position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,var(--ojh-c1,#2563eb) 50%,var(--ojh-c1,#2563eb) 60%,transparent 60%,transparent 70%,var(--ojh-c1,#2563eb) 70%,var(--ojh-c1,#2563eb) 80%,transparent 80%);z-index:2}
@@ -82,6 +82,7 @@
     .ojh-prefbody textarea{width:100%;height:110px;resize:vertical;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font:12px/1.5 system-ui;box-sizing:border-box}
     .ojh-prefbody textarea:focus{outline:none;border-color:var(--ojh-c1,#2563eb)}
     .ojh-prefbtns{display:flex;gap:8px;align-items:center;margin-top:8px}
+    #ojh-colordialog{position:fixed;z-index:2147483647;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.22);width:280px;font-family:system-ui;font-size:13px;color:#0f172a;overflow:hidden;left:50%;top:50%;transform:translate(-50%,-50%)}
     /* 隔离宿主页面样式：部分考试/后台系统有全局 input/select/textarea 深色规则，会把文字变成白色看不见 */
     #ojh-drawer input,#ojh-drawer select,#ojh-drawer textarea{
       color:#0f172a !important;background:#fff !important;background-color:#fff !important;
@@ -575,13 +576,32 @@ int main(){
   // ===== 右键菜单设置：显示开关 / 自定义快捷键 / 主题色 =====
   const SETTINGS_KEY='ojh_settings_v1';
   const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
-  let settings={visible:true,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},resetHotkey:{ctrl:true,alt:true,shift:false,key:'r'},theme:'blue',codePrefs:''};
+  // 从当前页面提取主题色：优先 theme-color meta，其次 body 背景色，最后标题栏颜色
+  function detectSiteTheme(){
+    try{
+      const meta=document.querySelector('meta[name="theme-color"]');
+      if(meta&&meta.content){return meta.content}
+      const bodyBg=getComputedStyle(document.body).backgroundColor;
+      if(bodyBg&&bodyBg!=='rgba(0, 0, 0, 0)'&&bodyBg!=='transparent'){return bodyBg}
+      const header=document.querySelector('header,.header,.navbar,.nav,.top-bar,[class*="header"],[class*="nav"]');
+      if(header){const c=getComputedStyle(header).backgroundColor;if(c&&c!=='rgba(0, 0, 0, 0)'&&c!=='transparent'){return c}}
+    }catch(_){}
+    return '#2563eb';
+  }
+  let settings={visible:false,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},copyHotkey:{alt:true,ctrl:false,shift:false,key:'c'},resetHotkey:{ctrl:true,alt:true,shift:false,key:'r'},theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
   function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
   function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
-  function applyTheme(){const t=THEMES[settings.theme]||THEMES.blue;document.documentElement.style.setProperty('--ojh-c1',t[0]);document.documentElement.style.setProperty('--ojh-c2',t[1])}
+  function applyTheme(){
+    let c1,c2;
+    if(settings.theme==='site'){c1=detectSiteTheme();c2=c1}
+    else if(settings.theme==='custom'){c1=settings.customColor||'#2563eb';c2=c1}
+    else{const t=THEMES[settings.theme]||THEMES.blue;c1=t[0];c2=t[1]}
+    document.documentElement.style.setProperty('--ojh-c1',c1);
+    document.documentElement.style.setProperty('--ojh-c2',c2);
+  }
   function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示':'悬浮球已隐藏，按 '+hkTextOf(settings.toggleHotkey)+' 可再次显示')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
   let hkDialog=null,hkCapture=null;
@@ -595,7 +615,7 @@ int main(){
     }
   }
   function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
-  function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'s'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）'}
+  function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'s'});if(field==='copyHotkey')return hkTextOf(settings.copyHotkey||{alt:true,ctrl:false,shift:false,key:'c'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）'}
   function startHkCapture(field,btn){
     cancelHkCapture();
     const lab=btn.closest('.ojh-hkrow').querySelector('.ojh-hkl');
@@ -684,6 +704,58 @@ int main(){
     prefDialog.querySelector('#ojh-prefclear').onclick=()=>{prefDialog.querySelector('#ojh-preftext').value='';settings.codePrefs='';saveSettings();prefDialog.querySelector('#ojh-prefst').textContent='已清空，恢复默认规则';};
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(prefDialog&&!prefDialog.contains(ev.target)){closePrefDialog();document.removeEventListener('pointerdown',h,true)}},true),0);
   }
+  // 全色卡选择器
+  let colorDialog=null;
+  function openColorPicker(){
+    if(colorDialog)closeColorPicker();
+    colorDialog=document.createElement('div');
+    colorDialog.id='ojh-colordialog';
+    colorDialog.innerHTML=`
+      <div class="ojh-hkhd"><span>选择主题颜色</span><span class="ojh-hkclose" id="ojh-colorclose">✕</span></div>
+      <div style="padding:14px">
+        <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px" id="ojh-colorgrid"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <span style="font-size:12px;color:#64748b">自定义:</span>
+          <input type="color" id="ojh-colorinput" value="${settings.customColor||'#2563eb'}" style="width:40px;height:28px;border:none;cursor:pointer">
+          <span id="ojh-colorhex" style="font-size:12px;font-family:monospace">${settings.customColor||'#2563eb'}</span>
+        </div>
+      </div>`;
+    attachOjh(colorDialog);
+    const grid=colorDialog.querySelector('#ojh-colorgrid');
+    const colors=[];
+    for(let h=0;h<360;h+=45)for(let s=40;s<=100;s+=30)for(let l=30;l<=70;l+=20)colors.push(`hsl(${h},${s}%,${l}%)`);
+    colors.forEach(c=>{
+      const d=document.createElement('div');
+      d.style.cssText=`width:28px;height:28px;border-radius:4px;background:${c};cursor:pointer;border:2px solid transparent`;
+      d.onclick=()=>{
+        const hex=hslToHex(c);
+        settings.theme='custom';settings.customColor=hex;saveSettings();applyTheme();
+        colorDialog.querySelectorAll('div').forEach(x=>x.style.borderColor='transparent');
+        d.style.borderColor='#0f172a';
+        colorDialog.querySelector('#ojh-colorhex').textContent=hex;
+        colorDialog.querySelector('#ojh-colorinput').value=hex;
+        showToast('颜色已设置 '+hex);
+      };
+      grid.appendChild(d);
+    });
+    const input=colorDialog.querySelector('#ojh-colorinput');
+    input.oninput=()=>{
+      settings.theme='custom';settings.customColor=input.value;saveSettings();applyTheme();
+      colorDialog.querySelector('#ojh-colorhex').textContent=input.value;
+    };
+    colorDialog.querySelector('#ojh-colorclose').onclick=closeColorPicker;
+    setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(colorDialog&&!colorDialog.contains(ev.target)){closeColorPicker();document.removeEventListener('pointerdown',h,true)}},true),0);
+  }
+  function closeColorPicker(){if(colorDialog){colorDialog.remove();colorDialog=null}}
+  function hslToHex(hsl){
+    const m=hsl.match(/hsl\((\d+),(\d+)%,(\d+)%\)/);
+    if(!m)return '#2563eb';
+    const h=parseInt(m[1]),s=parseInt(m[2])/100,l=parseInt(m[3])/100;
+    const a=s*Math.min(l,1-l);
+    const f=n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1))};
+    return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('');
+  }
+
   function resetFab(){drawer.style.removeProperty('--ojh-x');drawer.style.removeProperty('--ojh-y');drawer.style.removeProperty('--ojh-miny');drawer.classList.remove('ojh-minimized','ojh-open');savePos({});fab.style.removeProperty('left');fab.style.removeProperty('top');fab.style.removeProperty('bottom');storage.set(FAB_POS_KEY,null).catch(()=>{});showToast('已重置位置')}
   let fabMenu=null;
   function closeMenu(){if(fabMenu){fabMenu.remove();fabMenu=null}}
@@ -703,14 +775,25 @@ int main(){
       <div class="ojh-mi" data-a="prefs">✏ 代码偏好${settings.codePrefs?'（已设置）':''}</div>
       <div class="ojh-mi" data-a="reset">重置位置</div>
       <div class="ojh-msep">主题颜色</div>
-      <div class="ojh-mrow">${Object.keys(THEMES).map(t=>`<span class="ojh-swatch${t===settings.theme?' on':''}" data-t="${t}" style="background:${THEMES[t][0]}" title="${t}"></span>`).join('')}</div>`;
+      <div class="ojh-mrow">${Object.keys(THEMES).map(t=>`<span class="ojh-swatch${t===settings.theme?' on':''}" data-t="${t}" style="background:${THEMES[t][0]}" title="${t}"></span>`).join('')}
+        <span class="ojh-swatch${settings.theme==='site'?' on':''}" data-t="site" style="background:linear-gradient(135deg,#f59e0b,#ef4444)" title="当前网址主题"></span>
+        <span class="ojh-swatch${settings.theme==='custom'?' on':''}" data-t="custom" style="background:conic-gradient(red,yellow,green,cyan,blue,magenta,red)" title="更多颜色"></span>
+      </div>`;
     attachOjh(fabMenu);
     fabMenu.style.left=Math.min(e.clientX,window.innerWidth-fabMenu.offsetWidth-8)+'px';
     fabMenu.style.top=Math.min(e.clientY,window.innerHeight-fabMenu.offsetHeight-8)+'px';
     const sub=fabMenu.querySelector('.ojh-msub');
     sub.addEventListener('mouseenter',()=>{const sm=sub.querySelector('.ojh-submenu');requestAnimationFrame(()=>{const r=sm.getBoundingClientRect();if(r.right>window.innerWidth-8){sm.style.left='auto';sm.style.right='4px'}else{sm.style.left='calc(100% - 4px)';sm.style.right='auto'}})});
     fabMenu.querySelectorAll('.ojh-mi[data-a]').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hotkey'||a==='reshotkey'||a==='togglehotkey'){const map={hotkey:'hotkey',reshotkey:'resetHotkey',togglehotkey:'toggleHotkey'};const f=map[a];openHkDialog();const btn=hkDialog.querySelector('.ojh-hkbtn[data-f="'+f+'"]');if(btn)startHkCapture(f,btn)}else if(a==='prefs')openPrefsDialog();else if(a==='reset'){resetFab()}});
-    fabMenu.querySelectorAll('.ojh-swatch').forEach(sw=>sw.onclick=()=>{settings.theme=sw.dataset.t;saveSettings();applyTheme();closeMenu();showToast('主题已切换')});
+    fabMenu.querySelectorAll('.ojh-swatch').forEach(sw=>sw.onclick=()=>{
+      const t=sw.dataset.t;
+      if(t==='custom'){
+        closeMenu();
+        openColorPicker();
+        return;
+      }
+      settings.theme=t;saveSettings();applyTheme();closeMenu();showToast('主题已切换');
+    });
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(fabMenu&&!fabMenu.contains(ev.target)){closeMenu();document.removeEventListener('pointerdown',h,true)}},true),0);
   });
   storage.get(SETTINGS_KEY).then(v=>{
@@ -834,6 +917,40 @@ int main(){
   fab.ondblclick=e=>{showToast('复位快捷键：'+hkLabel('resetHotkey')+'（右键悬浮球可修改）')};
   // 生成快捷键：只负责抓题生成，不改变悬浮球显示状态（两者完全隔离）
   document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
+  // 复制快捷键 Alt+C：面板未显示→静默生成并复制代码；面板已显示→直接复制当前答案
+  document.addEventListener('keydown',e=>{
+    const chk=settings.copyHotkey;
+    if(!chk||chk.key==='none'||e.repeat||!combo(e,chk))return;
+    e.preventDefault();
+    if(drawer.classList.contains('ojh-open')){
+      const t=answer.value.trim();
+      if(t)copyText(t);else showToast('还没有可复制的内容');
+      return;
+    }
+    // 静默生成：不打开面板，直接走完整生成流程，完成后把结果复制到剪贴板
+    if(window.__ojhBusy){showToast('正在生成中，请稍候');return}
+    refetch();
+    const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};
+    if(p.problem.length<20){showToast('没抓到题面，请手动粘贴题目后再按 '+hkTextOf(chk));return}
+    window.__ojhBusy=true;showToast('正在静默生成…');
+    (async()=>{
+      try{
+        const d=await new Promise((res,rej)=>{
+          try{chrome.runtime.sendMessage({type:'OJ_CHAT',payload:p},r=>{const le=chrome.runtime.lastError;if(le)rej(new Error(le.message));else res(r||{});});}catch(err){rej(err);}
+        });
+        if(!d.ok)throw new Error(d.error||'未知错误');
+        let fixedAnswer=d.answer;
+        if(p.language.startsWith('C++')){
+          // 只提取代码块内容（防窥屏场景下不需要完整回答）
+          const codeMatch=fixedAnswer.match(/```(?:cpp|c\+\+)?\n([\s\S]*?)```/);
+          if(codeMatch)fixedAnswer=codeMatch[1].trim();
+        }
+        await copyText(fixedAnswer);
+        showToast('代码已复制到剪贴板');
+      }catch(err){showToast('生成失败：'+err.message.slice(0,30))}
+      finally{window.__ojhBusy=false}
+    })();
+  });
   // 显示/隐藏快捷键：默认 Ctrl+Alt+S，按一次隐藏、再按一次显示
   document.addEventListener('keydown',e=>{const thk=settings.toggleHotkey;if(thk&&thk.key!=='none'&&!e.repeat&&combo(e,thk)){e.preventDefault();toggleFab()}});
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
