@@ -14,7 +14,7 @@
   style.textContent = `
     #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ojh-c1,#2563eb),var(--ojh-c2,#1d4ed8));color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
     #ojh-fab:hover{transform:scale(1.06)}
-    #ojh-drawer{position:fixed;top:0;left:0;width:min(320px,60vw);height:70vh;z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:240px;min-height:200px}
+    #ojh-drawer{position:fixed;top:0;left:0;width:min(380px,70vw);height:min(380px,70vh);z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:280px;min-height:280px}
     #ojh-drawer.ojh-open{transform:translate3d(var(--ojh-x,0),var(--ojh-y,0),0) !important;transition:none}
     #ojh-drawer.ojh-open.from-left{transform:translate3d(0,0,0)}
     #ojh-resize{position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,var(--ojh-c1,#2563eb) 50%,var(--ojh-c1,#2563eb) 60%,transparent 60%,transparent 70%,var(--ojh-c1,#2563eb) 70%,var(--ojh-c1,#2563eb) 80%,transparent 80%);z-index:2}
@@ -82,7 +82,8 @@
     .ojh-prefbody textarea{width:100%;height:110px;resize:vertical;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font:12px/1.5 system-ui;box-sizing:border-box}
     .ojh-prefbody textarea:focus{outline:none;border-color:var(--ojh-c1,#2563eb)}
     .ojh-prefbtns{display:flex;gap:8px;align-items:center;margin-top:8px}
-    #ojh-colordialog{position:fixed;z-index:2147483647;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.22);width:280px;font-family:system-ui;font-size:13px;color:#0f172a;overflow:hidden;left:50%;top:50%;transform:translate(-50%,-50%)}
+    #ojh-colordialog{position:fixed;z-index:2147483647;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.22);width:280px;font-family:system-ui;font-size:13px;color:#0f172a;overflow:hidden;left:50%;top:50%;transform:translate(-50%,-50%);max-height:80vh;overflow-y:auto}
+    #ojh-colordialog .ojh-colorgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:14px}
     /* 隔离宿主页面样式：部分考试/后台系统有全局 input/select/textarea 深色规则，会把文字变成白色看不见 */
     #ojh-drawer input,#ojh-drawer select,#ojh-drawer textarea{
       color:#0f172a !important;background:#fff !important;background-color:#fff !important;
@@ -195,7 +196,31 @@
   if(isOJ)checkUpdate();
 
   function showToast(m){toast.textContent=m;toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),2200)}
-  function copyText(t){return new Promise(r=>{navigator.clipboard.writeText(t).then(()=>{showToast('已复制');r(true)}).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');showToast('已复制');r(true)}catch(_){showToast('复制失败');r(false)}document.body.removeChild(a)})})}
+  function copyText(t){
+    return new Promise(r=>{
+      // 优先使用 navigator.clipboard（需要页面聚焦）
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(()=>{showToast('已复制');r(true)}).catch(()=>{
+          // 静默复制失败时回退到 execCommand
+          fallbackCopy(t).then(r);
+        });
+      }else{
+        fallbackCopy(t).then(r);
+      }
+    });
+  }
+  function fallbackCopy(t){
+    return new Promise(r=>{
+      const a=document.createElement('textarea');
+      a.value=t;
+      a.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(a);
+      a.select();a.setSelectionRange(0,t.length);
+      try{document.execCommand('copy');showToast('已复制');r(true)}
+      catch(e){showToast('复制失败，请手动复制');r(false)}
+      document.body.removeChild(a);
+    });
+  }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
   // 给单语句控制体补大括号（跳过字符串/字符/注释/预处理行）
   function forceBraces(src){
@@ -596,7 +621,11 @@ int main(){
   function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
   function applyTheme(){
     let c1,c2;
-    if(settings.theme==='site'){c1=detectSiteTheme();c2=c1}
+    if(settings.theme==='site'){
+      c1=detectSiteTheme();c2=c1;
+      // 每次切换页面/重新加载时重新检测
+      setTimeout(()=>{const nc=detectSiteTheme();if(nc!==c1){c1=nc;c2=nc;document.documentElement.style.setProperty('--ojh-c1',c1);document.documentElement.style.setProperty('--ojh-c2',c2);}},500);
+    }
     else if(settings.theme==='custom'){c1=settings.customColor||'#2563eb';c2=c1}
     else{const t=THEMES[settings.theme]||THEMES.blue;c1=t[0];c2=t[1]}
     document.documentElement.style.setProperty('--ojh-c1',c1);
@@ -713,7 +742,7 @@ int main(){
     colorDialog.innerHTML=`
       <div class="ojh-hkhd"><span>选择主题颜色</span><span class="ojh-hkclose" id="ojh-colorclose">✕</span></div>
       <div style="padding:14px">
-        <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px" id="ojh-colorgrid"></div>
+        <div class="ojh-colorgrid" id="ojh-colorgrid"></div>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
           <span style="font-size:12px;color:#64748b">自定义:</span>
           <input type="color" id="ojh-colorinput" value="${settings.customColor||'#2563eb'}" style="width:40px;height:28px;border:none;cursor:pointer">
@@ -942,7 +971,7 @@ int main(){
         let fixedAnswer=d.answer;
         if(p.language.startsWith('C++')){
           // 只提取代码块内容（防窥屏场景下不需要完整回答）
-          const codeMatch=fixedAnswer.match(/```(?:cpp|c\+\+)?\n([\s\S]*?)```/);
+          const codeMatch=fixedAnswer.match(/```(?:cpp|c\+\+)?\s*\n([\s\S]*?)```/);
           if(codeMatch)fixedAnswer=codeMatch[1].trim();
         }
         await copyText(fixedAnswer);
