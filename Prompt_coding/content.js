@@ -701,13 +701,14 @@ int main(){
     hkDialog.innerHTML=`
       <div class="ojh-hkhd"><span>⌨ 快捷键设置</span><span class="ojh-hkclose" id="ojh-hkclose">✕</span></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('hotkey')}</div><div class="ojh-hkd">按此键直接抓取当前题目并生成解答</div></div><button class="ojh-hkbtn" data-f="hotkey">修改</button></div>
-      <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="ojh-hkbtn" data-f="resetHotkey">修改</button><button class="ojh-hkbtn" id="ojh-hknone">设为无</button></div></div>
+      <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('copyHotkey')}</div><div class="ojh-hkd">静默生成并复制代码到剪贴板（不显示面板）</div></div><button class="ojh-hkbtn" data-f="copyHotkey">修改</button></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('toggleHotkey')}</div><div class="ojh-hkd">显示/隐藏悬浮球：按一次隐藏，再按一次显示</div></div><button class="ojh-hkbtn" data-f="toggleHotkey">修改</button></div>
+      <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="ojh-hkbtn" data-f="resetHotkey">修改</button><button class="ojh-hkbtn" id="ojh-hknone">设为无</button></div></div>
       <div class="ojh-hktip">点「修改」后按键盘组合即可（需含 Ctrl/Alt/Shift 至少一个，Esc 取消）；复位快捷键可「设为无」彻底禁用。生成快捷键与显示/隐藏快捷键互相独立：悬浮球隐藏时生成快捷键仍能生成代码，但不会把悬浮球带出来。</div>`;
     attachOjh(hkDialog);
     placeDialog(hkDialog);makeDraggable(hkDialog);
     hkDialog.querySelector('#ojh-hkclose').onclick=closeHkDialog;
-    hkDialog.querySelector('#ojh-hknone').onclick=()=>{cancelHkCapture();settings.resetHotkey={key:'none'};saveSettings();const lab=hkDialog.querySelectorAll('.ojh-hkl')[1];lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent='无';showToast('复位快捷键已设为无')};
+    hkDialog.querySelector('#ojh-hknone').onclick=()=>{cancelHkCapture();settings.resetHotkey={key:'none'};saveSettings();const lab=hkDialog.querySelectorAll('.ojh-hkl')[3];lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent='无';showToast('复位快捷键已设为无')};
     hkDialog.querySelectorAll('.ojh-hkbtn[data-f]').forEach(btn=>btn.onclick=()=>startHkCapture(btn.dataset.f,btn));
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(hkDialog&&!hkDialog.contains(ev.target)){closeHkDialog();document.removeEventListener('pointerdown',h,true)}},true),0);
   }
@@ -797,6 +798,7 @@ int main(){
       <div class="ojh-mi ojh-msub">⌨ 快捷键<span class="ojh-arrow">›</span>
         <div class="ojh-submenu">
           <div class="ojh-mi" data-a="hotkey">生成快捷键：${hkText()}</div>
+          <div class="ojh-mi" data-a="copyhotkey">静默复制快捷键：${hkLabel('copyHotkey')}</div>
           <div class="ojh-mi" data-a="reshotkey">复位快捷键：${hkLabel('resetHotkey')}</div>
           <div class="ojh-mi" data-a="togglehotkey">显示/隐藏快捷键：${hkLabel('toggleHotkey')}</div>
         </div>
@@ -813,7 +815,7 @@ int main(){
     fabMenu.style.top=Math.min(e.clientY,window.innerHeight-fabMenu.offsetHeight-8)+'px';
     const sub=fabMenu.querySelector('.ojh-msub');
     sub.addEventListener('mouseenter',()=>{const sm=sub.querySelector('.ojh-submenu');requestAnimationFrame(()=>{const r=sm.getBoundingClientRect();if(r.right>window.innerWidth-8){sm.style.left='auto';sm.style.right='4px'}else{sm.style.left='calc(100% - 4px)';sm.style.right='auto'}})});
-    fabMenu.querySelectorAll('.ojh-mi[data-a]').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hotkey'||a==='reshotkey'||a==='togglehotkey'){const map={hotkey:'hotkey',reshotkey:'resetHotkey',togglehotkey:'toggleHotkey'};const f=map[a];openHkDialog();const btn=hkDialog.querySelector('.ojh-hkbtn[data-f="'+f+'"]');if(btn)startHkCapture(f,btn)}else if(a==='prefs')openPrefsDialog();else if(a==='reset'){resetFab()}});
+    fabMenu.querySelectorAll('.ojh-mi[data-a]').forEach(mi=>mi.onclick=()=>{const a=mi.dataset.a;closeMenu();if(a==='toggle')toggleFab();else if(a==='hotkey'||a==='reshotkey'||a==='togglehotkey'||a==='copyhotkey'){const map={hotkey:'hotkey',reshotkey:'resetHotkey',togglehotkey:'toggleHotkey',copyhotkey:'copyHotkey'};const f=map[a];openHkDialog();const btn=hkDialog.querySelector('.ojh-hkbtn[data-f="'+f+'"]');if(btn)startHkCapture(f,btn)}else if(a==='prefs')openPrefsDialog();else if(a==='reset'){resetFab()}});
     fabMenu.querySelectorAll('.ojh-swatch').forEach(sw=>sw.onclick=()=>{
       const t=sw.dataset.t;
       if(t==='custom'){
