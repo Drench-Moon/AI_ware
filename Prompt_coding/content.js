@@ -7,7 +7,14 @@
   // 这样刷题网站 iframe 全屏模式下快捷键依然有效
   // run_at: document_start 保证在网站脚本之前绑定，避免 stopImmediatePropagation 拦截
   const IS_TOP = window === window.top;
-  const combo=(e,hk)=>{const k=(e.key||'').toLowerCase();return k===hk.key&&e.altKey===!!hk.alt&&e.ctrlKey===!!hk.ctrl&&e.shiftKey===!!hk.shift};
+  const combo=(e,hk)=>{
+    if(!hk||!hk.key||hk.key==='none')return false;
+    let k=(e.key||'').toLowerCase();
+    // 输入法/特殊键盘布局下 e.key 可能不是字母，退回物理键位 e.code
+    if(k.length!==1&&e.code&&/^Key[A-Z]$/.test(e.code))k=e.code.slice(3).toLowerCase();
+    if(k!==hk.key)return false;
+    return e.altKey===!!hk.alt&&e.ctrlKey===!!hk.ctrl&&e.shiftKey===!!hk.shift;
+  };
   function topFire(action){try{window.top.postMessage({type:'__ojh_hotkey',action},'*')}catch(_){}}
   if(!IS_TOP){
     // 键位先用默认值同步绑定，保证沙箱 iframe 里 chrome.storage 不可用时快捷键依然生效
@@ -53,7 +60,7 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ojh-c1,#2563eb),var(--ojh-c2,#1d4ed8));color:#fff;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
+    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ojh-c1,#2563eb),var(--ojh-c2,#1d4ed8));color:var(--ojh-fg,#fff);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
     #ojh-fab:hover{transform:scale(1.06)}
     #ojh-drawer{position:fixed;top:0;left:0;width:min(380px,70vw);height:min(380px,70vh);z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:280px;min-height:280px}
     #ojh-drawer.ojh-open{transform:translate3d(var(--ojh-x,0),var(--ojh-y,0),0) !important;transition:none}
@@ -63,10 +70,10 @@
     #ojh-drawer.ojh-minimized .ojh-body{display:none}
     #ojh-drawer.ojh-minimized{height:auto;transform:translate3d(var(--ojh-x,0),var(--ojh-miny,calc(100vh - 42px)),0) !important}
     #ojh-drawer *{box-sizing:border-box}
-    .ojh-hd{background:linear-gradient(135deg,var(--ojh-c2,#1e40af),var(--ojh-c1,#2563eb));color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+    .ojh-hd{background:linear-gradient(135deg,var(--ojh-c2,#1e40af),var(--ojh-c1,#2563eb));color:var(--ojh-fg,#fff);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
     .ojh-hd h3{margin:0;font-size:15px}
     .ojh-body{flex:1;overflow-y:auto;padding:14px}
-    .ojh-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px}
+    .ojh-close{background:rgba(255,255,255,.15);border:none;color:var(--ojh-fg,#fff);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px}
     .ojh-field{margin-bottom:10px}
     .ojh-field label{display:block;font-size:12px;color:#64748b;margin-bottom:3px}
     .ojh-field input,.ojh-field select,.ojh-field textarea{width:100%;padding:7px 9px;border:1px solid #e2e8f0;border-radius:6px;font:inherit;background:#fff}
@@ -103,7 +110,7 @@
     .ojh-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
     .ojh-swatch.on{border-color:#0f172a}
     #ojh-hkdialog{position:fixed;z-index:2147483647;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.22);width:310px;font-family:system-ui;font-size:13px;color:#0f172a;overflow:hidden}
-    .ojh-hkhd{background:linear-gradient(135deg,var(--ojh-c2,#1e40af),var(--ojh-c1,#2563eb));color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+    .ojh-hkhd{background:linear-gradient(135deg,var(--ojh-c2,#1e40af),var(--ojh-c1,#2563eb));color:var(--ojh-fg,#fff);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
     .ojh-hkclose{cursor:pointer;opacity:.85;font-weight:400;padding:2px 6px;border-radius:4px}
     .ojh-hkclose:hover{opacity:1;background:rgba(255,255,255,.18)}
     .ojh-hkrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #f1f5f9}
@@ -651,15 +658,32 @@ int main(){
   // ===== 右键菜单设置：显示开关 / 自定义快捷键 / 主题色 =====
   const SETTINGS_KEY='ojh_settings_v1';
   const THEMES={blue:['#2563eb','#1d4ed8'],purple:['#7c3aed','#5b21b6'],green:['#059669','#047857'],orange:['#ea580c','#c2410c'],dark:['#334155','#0f172a']};
-  // 从当前页面提取主题色：优先 theme-color meta，其次 body 背景色，最后标题栏颜色
+  // 颜色工具：解析 #rgb / #rrggbb / rgb() / rgba()，透明色视为无效
+  function parseColor(c){
+    if(!c)return null;
+    c=String(c).trim();
+    let m=c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if(m){let v=m[1];if(v.length===3)v=v[0]+v[0]+v[1]+v[1]+v[2]+v[2];return {r:parseInt(v.slice(0,2),16),g:parseInt(v.slice(2,4),16),b:parseInt(v.slice(4,6),16)}}
+    m=c.match(/^rgba?\(([^)]+)\)/i);
+    if(m){const p=m[1].split(',').map(x=>parseFloat(x));if(p.length>=3&&(p[3]===undefined||p[3]>0.05))return {r:p[0],g:p[1],b:p[2]}}
+    return null;
+  }
+  // 相对亮度 0~1，用来判断颜色是深还是浅
+  function lumOf(c){const p=parseColor(c);if(!p)return null;const f=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)};return 0.2126*f(p.r)+0.7152*f(p.g)+0.0722*f(p.b)}
+  function mixWhite(c,p){const q=parseColor(c);if(!q)return c;const r=Math.round(q.r+(255-q.r)*p),g=Math.round(q.g+(255-q.g)*p),b=Math.round(q.b+(255-q.b)*p);return 'rgb('+r+','+g+','+b+')'}
+  // 深色页面检测到的黑/深灰会让球融进背景，提亮到可见但仍接近页面色调
+  function adaptColor(c){const lum=lumOf(c);if(lum===null)return '#2563eb';return lum<0.18?mixWhite(c,0.45):c}
+  // 背景是浅色时自动换成深色文字，避免"白球+白字"看不清
+  function fgOf(c){const lum=lumOf(c);return (lum!==null&&lum>0.6)?'#0f172a':'#ffffff'}
+  // 从当前页面提取主题色：优先 theme-color meta，其次 html/body 背景色，最后标题栏颜色
   function detectSiteTheme(){
     try{
       const meta=document.querySelector('meta[name="theme-color"]');
-      if(meta&&meta.content){return meta.content}
-      const bodyBg=getComputedStyle(document.body).backgroundColor;
-      if(bodyBg&&bodyBg!=='rgba(0, 0, 0, 0)'&&bodyBg!=='transparent'){return bodyBg}
+      if(meta&&meta.content&&parseColor(meta.content))return meta.content.trim();
+      const els=[document.body,document.documentElement];
+      for(const el of els){if(!el)continue;const bg=getComputedStyle(el).backgroundColor;if(parseColor(bg))return bg}
       const header=document.querySelector('header,.header,.navbar,.nav,.top-bar,[class*="header"],[class*="nav"]');
-      if(header){const c=getComputedStyle(header).backgroundColor;if(c&&c!=='rgba(0, 0, 0, 0)'&&c!=='transparent'){return c}}
+      if(header){const c=getComputedStyle(header).backgroundColor;if(parseColor(c))return c}
     }catch(_){}
     return '#2563eb';
   }
@@ -669,17 +693,28 @@ int main(){
   function hkText(){return hkTextOf(settings.hotkey)}
   function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
   function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
+  function setThemeVars(c1,c2){
+    document.documentElement.style.setProperty('--ojh-c1',c1);
+    document.documentElement.style.setProperty('--ojh-c2',c2);
+    document.documentElement.style.setProperty('--ojh-fg',fgOf(c1));
+  }
   function applyTheme(){
     let c1,c2;
     if(settings.theme==='site'){
-      c1=detectSiteTheme();c2=c1;
-      // 每次切换页面/重新加载时重新检测
-      setTimeout(()=>{const nc=detectSiteTheme();if(nc!==c1){c1=nc;c2=nc;document.documentElement.style.setProperty('--ojh-c1',c1);document.documentElement.style.setProperty('--ojh-c2',c2);}},500);
+      c1=adaptColor(detectSiteTheme());c2=c1;
+      window.__ojhThemeC=c1;
+      // 页面底色/标题栏常常在加载后才确定，多测几次，变了就实时换
+      const re=()=>{
+        try{
+          const nc=adaptColor(detectSiteTheme());
+          if(nc!==window.__ojhThemeC){window.__ojhThemeC=nc;setThemeVars(nc,nc)}
+        }catch(_){}
+      };
+      setTimeout(re,500);setTimeout(re,1500);setTimeout(re,3000);
     }
     else if(settings.theme==='custom'){c1=settings.customColor||'#2563eb';c2=c1}
     else{const t=THEMES[settings.theme]||THEMES.blue;c1=t[0];c2=t[1]}
-    document.documentElement.style.setProperty('--ojh-c1',c1);
-    document.documentElement.style.setProperty('--ojh-c2',c2);
+    setThemeVars(c1,c2);
   }
   function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示':'悬浮球已隐藏，按 '+hkTextOf(settings.toggleHotkey)+' 可再次显示')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
@@ -704,7 +739,13 @@ int main(){
     lab.classList.add('ojh-capturing');
     lab.textContent='⌨ 当前：'+oldText+' ｜ 请按新组合键…（Esc 取消）';
     const done=()=>{document.removeEventListener('keydown',kd,true);hkCapture=null};
-    const apply=(hk)=>{settings[field]=hk;saveSettings();done();lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=hkLabel(field);if(field==='hotkey')fab.title='OJ 助手 ('+hkText()+')'};
+    const apply=(hk)=>{
+      settings[field]=hk;saveSettings();done();lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=hkLabel(field);if(field==='hotkey')fab.title='OJ 助手 ('+hkText()+')';
+      // 提示与其他动作重复：重复的键只会触发排在前面的那个，看起来就像"没反应"
+      const names=[['hotkey','生成'],['copyHotkey','静默复制'],['toggleHotkey','显示/隐藏'],['resetHotkey','复位']];
+      const dup=names.filter(x=>x[0]!==field).find(x=>{const o=settings[x[0]];return o&&o.key!=='none'&&hkTextOf(o)===hkTextOf(hk)});
+      if(dup)showToast('⚠ 与「'+dup[1]+'」快捷键重复，重复时只会触发先生效的那个');
+    };
     const kd=e=>{
       if(e.target&&e.target.closest&&e.target.closest('textarea,input'))return;
       e.preventDefault();e.stopPropagation();

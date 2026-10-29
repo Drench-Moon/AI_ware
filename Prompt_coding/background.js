@@ -264,11 +264,30 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 /* ===== chrome.commands 扩展级快捷键（最高优先级，即使页面 stopImmediatePropagation 也拦不住）=====
-   发消息给当前活动 tab 的 content script，content script 收到后走 fire() 执行 */
+   发消息给当前活动 tab 的 content script，content script 收到后走 fire() 执行。
+   注意：manifest 里的键位是固定默认值，用户改了快捷键后旧默认键不该再生效，
+   所以这里先比对 chrome.storage 里的当前设置，被改过就忽略该命令。 */
+const CMD_DEFAULTS = {
+  ojh_generate: { field: 'hotkey', alt: true, ctrl: false, shift: false, key: 'g' },
+  ojh_copy: { field: 'copyHotkey', alt: true, ctrl: false, shift: false, key: 'c' },
+  ojh_toggle: { field: 'toggleHotkey', alt: true, ctrl: false, shift: false, key: 's' },
+  ojh_reset: { field: 'resetHotkey', alt: true, ctrl: false, shift: false, key: 'r' },
+};
 chrome.commands.onCommand.addListener(async (cmd) => {
   const actionMap = { ojh_generate: 'generate', ojh_copy: 'copysilent', ojh_toggle: 'toggle', ojh_reset: 'reset' };
   const action = actionMap[cmd];
   if (!action) return;
+  const d = CMD_DEFAULTS[cmd];
+  try {
+    const st = (await chrome.storage.local.get('ojh_settings_v1'))['ojh_settings_v1'];
+    const cur = st && st[d.field];
+    if (cur) {
+      // 被改成"无"或与默认键位不同 → 说明用户自定义过，不再用默认键触发
+      const diff = cur.key === 'none' || cur.key !== d.key ||
+        !!cur.alt !== d.alt || !!cur.ctrl !== d.ctrl || !!cur.shift !== d.shift;
+      if (diff) return;
+    }
+  } catch (_) { /* 读不到设置就按默认键处理 */ }
   try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (!tab || !tab.id) return;
