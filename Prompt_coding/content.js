@@ -60,7 +60,7 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ojh-c1,#2563eb),var(--ojh-c2,#1d4ed8));color:var(--ojh-fg,#fff);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(37,99,235,.4);user-select:none;font-family:system-ui;touch-action:none}
+    #ojh-fab{position:fixed;left:16px;bottom:76px;z-index:2147483647;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--ojh-c1,#2563eb),var(--ojh-c2,#1d4ed8));color:var(--ojh-fg,#fff);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 0 1.5px var(--ojh-ring,rgba(255,255,255,.4)),0 4px 16px rgba(0,0,0,.35);user-select:none;font-family:system-ui;touch-action:none}
     #ojh-fab:hover{transform:scale(1.06)}
     #ojh-drawer{position:fixed;top:0;left:0;width:min(380px,70vw);height:min(380px,70vh);z-index:2147483647;background:#fff;color:#0f172a;box-shadow:4px 0 24px rgba(0,0,0,.2);transform:translateX(-102%);transition:transform .25s;display:flex;flex-direction:column;font-family:system-ui,'Microsoft YaHei',sans-serif;font-size:14px;min-width:280px;min-height:280px}
     #ojh-drawer.ojh-open{transform:translate3d(var(--ojh-x,0),var(--ojh-y,0),0) !important;transition:none}
@@ -675,11 +675,11 @@ int main(){
   function lumOf(c){const p=parseColor(c);if(!p)return null;const f=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)};return 0.2126*f(p.r)+0.7152*f(p.g)+0.0722*f(p.b)}
   function mixWhite(c,p){const q=parseColor(c);if(!q)return c;const r=Math.round(q.r+(255-q.r)*p),g=Math.round(q.g+(255-q.g)*p),b=Math.round(q.b+(255-q.b)*p);return 'rgb('+r+','+g+','+b+')'}
   function mixBlack(c,p){const q=parseColor(c);if(!q)return c;const r=Math.round(q.r*(1-p)),g=Math.round(q.g*(1-p)),b=Math.round(q.b*(1-p));return 'rgb('+r+','+g+','+b+')'}
-  // 深色背景提亮避免"黑球贴黑底"；接近纯白的背景压暗一点，避免"白球消失在白底"
+  // 深色背景几乎不提亮（保持和页面同色），靠一圈描边区分；接近纯白的底色略压暗
   function adaptColor(c){
     const lum=lumOf(c);if(lum===null)return '#2563eb';
-    if(lum<0.18)return mixWhite(c,0.45);
-    if(lum>0.88)return mixBlack(c,0.4);
+    if(lum<0.18)return mixWhite(c,0.10);
+    if(lum>0.88)return mixBlack(c,0.10);
     return c;
   }
   // 背景是浅色时自动换成深色文字，避免"白球+白字"看不清
@@ -722,6 +722,9 @@ int main(){
     document.documentElement.style.setProperty('--ojh-c1',c1);
     document.documentElement.style.setProperty('--ojh-c2',c2);
     document.documentElement.style.setProperty('--ojh-fg',fgOf(c1));
+    // 球和页面同色时靠这圈描边区分，深色球用亮描边、浅色球用暗描边
+    const lum=lumOf(c1);
+    document.documentElement.style.setProperty('--ojh-ring',lum!==null&&lum>0.55?'rgba(0,0,0,.35)':'rgba(255,255,255,.45)');
   }
   function applyTheme(){
     let c1,c2;
