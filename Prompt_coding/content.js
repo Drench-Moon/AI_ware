@@ -396,8 +396,8 @@
   }
   async function loadH(){try{return JSON.parse((await chrome.storage.local.get(HISTORY_KEY))[HISTORY_KEY]||'[]')}catch(_){return[]}}
   function postProcess(raw, p){
-    let a = raw;
-    if(!(p.language||'').startsWith('C++')) return a;
+    let fixedAnswer = raw;
+    if(!(p.language||'').startsWith('C++')) return fixedAnswer;
         // 用户代码偏好里要求 '\n'（且未提 endl）时，换行保留 '\n'（大量输出更快），否则统一 endl
         const prefNl = !!(settings && settings.codePrefs && /\\n/.test(settings.codePrefs) && !/endl/i.test(settings.codePrefs));
         const nlT = prefNl ? ' << "\\n"' : ' << endl';
@@ -521,14 +521,18 @@
           fixedAnswer = '#include <iostream>\nusing namespace std;\n'+fixedAnswer;
         }
         // 提示用户做了替换
-        if(fixedAnswer !== d.answer){
+        if(fixedAnswer !== raw){
           showToast('已自动把 printf/scanf 转成 cin/cout');
         }
-    return a;
+    return fixedAnswer;
   }
   function extractCodeBlock(answer){
-    const m=answer.match(/``(?:cpp|c\+\+)?\s*\n([\s\S]*?)``/);
-    return m?m[1].trim():answer.trim().replace(/^\s*#include.*$/gm,'');
+    const m=answer.match(/```[^\n]*\n([\s\S]*?)```/);
+    if(m&&m[1].trim())return m[1].trim();
+    // 没有代码围栏时：从第一条 #include / using namespace / int main 开始取，避免把"思路"文字带进去
+    const t=answer.trim();
+    const i=t.search(/^(\s*#include|\s*using\s+namespace|\s*int\s+main|\s*class\s+Solution)/m);
+    return i>=0?t.slice(i).trim():t;
   }
 
   async function saveH(h){await chrome.storage.local.set({[HISTORY_KEY]: JSON.stringify(h)}).catch(()=>{})}
@@ -642,7 +646,6 @@ int main(){
       if(!d.ok)throw new Error(d.error||'未知错误');
       // 强制把 C 风格 IO 转成 C++ 风格（模型不听话时兜底）
       let fixedAnswer = postProcess(d.answer, p);
-      if(fixedAnswer !== d.answer) showToast('已自动把 printf/scanf 转成 cin/cout');
       answer.value=fixedAnswer;result.innerHTML=renderMd(fixedAnswer);
       const h=await loadH();if(Array.isArray(h)){h.unshift({id:Date.now().toString(36),time:Date.now(),...p,result:fixedAnswer});while(h.length>MAX_HISTORY)h.pop();saveH(h)}
       hint.innerHTML='<b>生成完成 ✅</b><br>代码块右上角有「复制」，复制后粘到右侧编辑器提交即可。';
