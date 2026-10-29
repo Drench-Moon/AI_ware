@@ -755,6 +755,7 @@ int main(){
       if(lab){lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=hkCapture.orig}
       hkCapture=null;
     }
+    window.__ojhCapturing=false;
   }
   function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
   function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'s'});if(field==='copyHotkey')return hkTextOf(settings.copyHotkey||{alt:true,ctrl:false,shift:false,key:'c'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Alt+Shift+R（默认）'}
@@ -766,7 +767,7 @@ int main(){
     lab.classList.remove('ojh-hkerr');
     lab.classList.add('ojh-capturing');
     lab.textContent='⌨ 当前：'+oldText+' ｜ 请按新组合键…（Esc 取消）';
-    const done=()=>{document.removeEventListener('keydown',kd,true);hkCapture=null};
+    const done=()=>{document.removeEventListener('keydown',kd,true);hkCapture=null;window.__ojhCapturing=false};
     const apply=(hk)=>{
       settings[field]=hk;saveSettings();done();lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=hkLabel(field);if(field==='hotkey')fab.title='OJ 助手 ('+hkText()+')';
       // 提示与其他动作重复：重复的键只会触发排在前面的那个，看起来就像"没反应"
@@ -788,6 +789,7 @@ int main(){
       apply({alt:e.altKey,ctrl:e.ctrlKey,shift:e.shiftKey,key:k});
     };
     hkCapture={kd,lab,orig:oldText};
+    window.__ojhCapturing=true;
     setTimeout(()=>{document.addEventListener('keydown',kd,true)},50);
   }
   // 弹窗定位：悬浮球右下方，绝不遮挡悬浮球；溢出时镜像到左侧/上方
@@ -1068,6 +1070,7 @@ int main(){
   function matchHotkey(e){return combo(e,settings.hotkey)}
   // 统一键盘事件分发：4 个快捷键用同一套 dispatch，绑到 document 和 window 双保险
   function topDispatch(e){
+    if(window.__ojhCapturing)return;   // 正在设置快捷键时不要把按键当成动作
     if(e.repeat)return;
     const rhk=settings.resetHotkey;
     if(rhk&&rhk.key!=='none'&&combo(e,rhk)){e.preventDefault();resetFab();return}
