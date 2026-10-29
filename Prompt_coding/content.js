@@ -347,118 +347,9 @@
     return out;
   }
   async function loadH(){try{return JSON.parse((await chrome.storage.local.get(HISTORY_KEY))[HISTORY_KEY]||'[]')}catch(_){return[]}}
-  async function saveH(h){await chrome.storage.local.set({[HISTORY_KEY]: JSON.stringify(h)}).catch(()=>{})}
-
-  const WEAK=/^(输入描述|输入格式|输出描述|输出格式|样例输入\s*\d*|样例输出\s*\d*|示例\s*\d*|Input|Output|Sample Input\s*\d*|Sample Output\s*\d*|Examples?|Notes?|Constraints?|数据范围)$/i;
-  const STRONG=/^(题目描述|题目背景|Problem Statement|Description)$/i;
-  function tx(el){return (el.innerText||el.textContent||'').replace(/\s+/g,' ').trim()}
-  function gather(doc){
-    const a=[];
-    let root, walker;
-    try{
-      if(doc && typeof doc.createTreeWalker==='function'){
-        root=doc.body||doc;
-        walker=doc.createTreeWalker(root,NodeFilter.SHOW_ELEMENT);
-      }else if(doc && doc.nodeType===1){
-        root=doc;
-        walker=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT);
-      }else{return a}
-    }catch(e){return a}
-    let n;
-    while(n=walker.nextNode()){
-      const t=n.tagName;if(!t)continue;
-      if(/^(H[1-6]|STRONG|B|TH|TD|SPAN|DIV|P|LABEL|DT)$/.test(t)){
-        const s=tx(n);if(!s)continue;
-        if(STRONG.test(s)){a.push({el:n,strong:true});continue}
-        if(WEAK.test(s))a.push({el:n,strong:false})
-      }
-    }
-    return a
-  }
-  function lca(a,b){const s=new Set();let x=a;while(x){s.add(x);x=x.parentElement}let y=b;while(y){if(s.has(y))return y;y=y.parentElement}return null}
-  function expand(n){let c=n;for(let i=0;i<6;i++){if(!c.parentElement)break;if(tx(c).length>=150&&c.parentElement)break;const a=gather(c);let w=0,s=0;a.forEach(x=>{if(x.strong)s++;else w++});if((w>=2||s>=1)&&tx(c).length>=150)break;c=c.parentElement}return c}
-  function extractTitle(d){for(let i=1;i<=5;i++){const h=d.querySelector('h'+i);if(h&&tx(h))return tx(h)}return d.title}
-  function extractLeetCode(){try{if(!/leetcode\.(cn|com)$/.test(location.hostname))return null;let text='';const desc=document.querySelector('[data-track-load="description_content"]');if(desc&&tx(desc).length>60)text=tx(desc);if(!text){const d=document.querySelector('div[data-cy="description-content"]');if(d&&tx(d).length>60)text=tx(d)}let sig='';const vl=document.querySelector('.monaco-editor .view-lines');if(vl)sig=(vl.innerText||'').replace(/\u00a0/g,' ').split('\n').filter(s=>s.trim()).slice(0,40).join('\n').trim();if(!text&&!sig)return null;let out=text;if(sig)out+=(out?'\n\n':'')+'【代码模板/函数签名】\n'+sig;return {title:extractTitle(document),text:out}}catch(_){return null}}
-  function extract(){const lc=extractLeetCode();if(lc&&lc.text&&lc.text.length>=60)return lc;const docs=[document];document.querySelectorAll('iframe').forEach(f=>{try{if(f.contentDocument && typeof f.contentDocument.createTreeWalker==='function')docs.push(f.contentDocument)}catch(_){}});let best=null,bs=0;docs.forEach(doc=>{const a=gather(doc);if(!a.length)return;const st=a.filter(x=>x.strong),wk=a.filter(x=>!x.strong);let r;if(wk.length>=2){r=wk[0].el;for(let i=1;i<wk.length;i++)r=lca(r,wk[i].el)}else if(st.length)r=st[0].el;else r=a[0].el;if(!r)return;r=expand(r);const t=tx(r);if(t.length<80)return;const ag=gather(r);let s=0,w=0;ag.forEach(x=>{if(x.strong)s++;else w++});const sc=t.length+s*50+w*30;if(sc>bs){bs=sc;best={title:extractTitle(doc),text:t}}});if(best)return best;let f=null,fl=0;document.querySelectorAll('main,article,section,[role=main],.problem,.content,.description').forEach(e=>{const t=tx(e);if(t.length>fl){fl=t.length;f=e}});if(f)return{title:extractTitle(document),text:tx(f)};return{title:document.title,text:document.body.innerText}}
-  function buildPrompt(p){const m={study:'先给「## 思路」（关键观察、算法、正确性、复杂度），再给「## 代码」（完整可提交，带中文注释），最后给「## 边界与易错点」（3~5 条）。',code:'直接给完整可提交的代码，带必要中文注释，不要解释。',hint:'只给分步提示（每步一句话），不要给完整代码。'}[p.mode]||'';const isCpp=p.language.startsWith('C++');const FN=/class\s+Solution\b|def\s+\w+\s*\(\s*self\b/.test(p.problem||'');const langRule=isCpp?(FN?`这是「函数式题目」（LeetCode 风格）。必须用 ${p.language} 标准 C++ 语法：只给出完整的 class Solution 类并保持函数签名、方法名、参数、返回类型完全不变；不要写 main 函数；不要任何 cin/cout/printf/scanf 输入输出；不要自行构造测试数据；禁止 #include <bits/stdc++.h>，通常不需要任何 #include（平台已有默认环境）。`:`必须严格遵守 ${p.language} 现代 C++ 风格：
-
-【输入输出模板】（必须照这个写，禁止 printf/scanf/puts/gets）
-\`\`\`cpp
-#include <iostream>   // 只引入你实际用到的头文件，示例仅示意
-#include <vector>
-using namespace std;
-
-int main(){
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-    int n;
-    cin >> n;            // 读取整数
-    vector<int> a(n);
-    for(int i=0;i<n;i++) cin >> a[i];  // 读取数组
-    cout << ans << endl;   // 输出答案
-    return 0;
-}
-\`\`\`
-
-【禁止清单】出现以下任意一个都算错误答案：
-- printf / scanf / puts / gets / getchar
-- #include <stdio.h> / #include <cstdio>
-- %d %lld %s 等 C 风格格式符
-
-【必须使用】cin、cout、std::string、std::vector、std::map、std::set 等 C++ STL
-
-【头文件】禁止 #include <bits/stdc++.h> 万能头（编译很慢）。写完代码后逐个检查 include：只保留代码里真正用到的，没用到的一律删掉——没用 sort/min/max 就不许写 <algorithm>，没用 string 就不许写 <string>。对照表：vector→<vector>，string→<string>，sort/min/max/reverse/find→<algorithm>，map/set→<map>/<set>，unordered_map→<unordered_map>，queue/stack→<queue>/<stack>，pair→<utility>，sqrt/pow/floor→<cmath>，isdigit/tolower→<cctype>，INT_MAX→<climits>，accumulate→<numeric>，setprecision→<iomanip>
-
-【精度控制】需要保留 N 位小数时，必须 #include <iomanip>，然后写：
-    cout << fixed << setprecision(N) << x << endl;
-禁止用 printf("%.Nf", x) 这种 C 风格精度控制
-
-【换行】${(settings&&settings.codePrefs&&/\\n/.test(settings.codePrefs)&&!/endl/i.test(settings.codePrefs))?'遵循下方【用户代码偏好】，用户未另行说明的部分仍用 endl':'输出换行必须用 endl，禁止在字符串里写 "\\n" 换行'}，【大括号】if/else、for、while、do-while、switch、函数、结构体、类等所有语句块，执行体即使只有一行也必须用大括号 {} 包裹，禁止省略，方便后续修改`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);const prefsLine=(settings&&settings.codePrefs&&settings.codePrefs.trim())?'\n\n【用户代码偏好】（AI 必须自主理解并严格遵守；本段与上方默认规则冲突时，以本段为准）：\n'+settings.codePrefs.trim():'';return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：写完代码后必须自查一遍——逐个确认每个 #include 都被代码真正用到（没用的删掉）、没有多余变量和死代码、没有编译错误，确保提交即可通过编译；${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。${prefsLine}\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
-
-  const $=id=>drawer.querySelector(id);
-  const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
-  function refetch(){
-    const e=extract();
-    const fresh=(e.text||'').trim(), old=problem.value.trim();
-    // 陌生平台可能只抓到导航/页脚，若没抓到有效题面且用户已手动粘贴，则保留原内容，避免被覆盖
-    if(fresh.length<20 && old.length>=20){showToast('未抓到新题面，已保留当前内容');return}
-    title.value=e.title||title.value||'';
-    problem.value=e.text||'';
-    showToast('已抓取 '+problem.value.length+' 字');
-  }
-  $('#ojh-refetch').onclick=refetch;
-  async function generate(){refetch();await new Promise(r=>setTimeout(r,300));if(problem.value.length<20){showToast('题目太短，请先抓取');return}const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};window.__ojhCur=p;await copyText(buildPrompt(p));hint.style.display='block';answer.value=''}
-  $('#ojh-gen').onclick=generate;
-  $('#ojh-auto').onclick=async()=>{
-    if(window.__ojhBusy){showToast('正在生成中，请稍候');return}
-    const btn=$('#ojh-auto');
-    refetch();
-    const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};
-    // 先校验再进入「生成中」状态，避免题面为空时按钮永久卡在生成中
-    if(p.problem.length<20){showToast('没抓到题面，请在下方手动粘贴题目后重试');problem.focus();return}
-    window.__ojhBusy=true;window.__ojhCur=p;
-    btn.disabled=true;btn.textContent='生成中…';hint.style.display='block';
-    hint.innerHTML='<b>正在调用模型…</b><br>结果会直接显示在下方，全程不用切窗口。';
-    try{
-      const d=await (async ()=>{
-  for(let attempt=0; attempt<3; attempt++){
-    try{
-      if(!chrome.runtime||!chrome.runtime.id||!chrome.runtime.sendMessage) throw new Error('EXT_RELOAD');
-      return await new Promise((res,rej)=>{
-        try{chrome.runtime.sendMessage({type:'OJ_CHAT',payload:p},r=>{const le=chrome.runtime.lastError; if(le) rej(new Error(le.message)); else res(r||{});});}catch(e){rej(e);}
-      });
-    }catch(e){
-      const isConnectErr = (e.message||'').includes('Receiving end')||(e.message||'').includes('Could not establish');
-      if(isConnectErr && attempt<2){ await new Promise(r=>setTimeout(r,600)); continue; }
-      if(e.message==='EXT_RELOAD'||/Extension context invalidated/i.test(e.message||'')){ showToast('扩展已更新，请按 F5 刷新答题页'); throw new Error('扩展已更新，请按 F5 刷新页面后重试'); }
-      throw e;
-    }
-  }
-})();
-      if(!d.ok)throw new Error(d.error||'未知错误');
-      // 强制把 C 风格 IO 转成 C++ 风格（模型不听话时兜底）
-      let fixedAnswer = d.answer;
-      if(p.language.startsWith('C++')){
+  function postProcess(raw, p){
+    let a = raw;
+    if(!(p.language||'').startsWith('C++')) return a;
         // 用户代码偏好里要求 '\n'（且未提 endl）时，换行保留 '\n'（大量输出更快），否则统一 endl
         const prefNl = !!(settings && settings.codePrefs && /\\n/.test(settings.codePrefs) && !/endl/i.test(settings.codePrefs));
         const nlT = prefNl ? ' << "\\n"' : ' << endl';
@@ -585,7 +476,125 @@ int main(){
         if(fixedAnswer !== d.answer){
           showToast('已自动把 printf/scanf 转成 cin/cout');
         }
+    return a;
+  }
+  function extractCodeBlock(answer){
+    const m=answer.match(/``(?:cpp|c\+\+)?\s*\n([\s\S]*?)``/);
+    return m?m[1].trim():answer.trim().replace(/^\s*#include.*$/gm,'');
+  }
+
+  async function saveH(h){await chrome.storage.local.set({[HISTORY_KEY]: JSON.stringify(h)}).catch(()=>{})}
+
+  const WEAK=/^(输入描述|输入格式|输出描述|输出格式|样例输入\s*\d*|样例输出\s*\d*|示例\s*\d*|Input|Output|Sample Input\s*\d*|Sample Output\s*\d*|Examples?|Notes?|Constraints?|数据范围)$/i;
+  const STRONG=/^(题目描述|题目背景|Problem Statement|Description)$/i;
+  function tx(el){return (el.innerText||el.textContent||'').replace(/\s+/g,' ').trim()}
+  function gather(doc){
+    const a=[];
+    let root, walker;
+    try{
+      if(doc && typeof doc.createTreeWalker==='function'){
+        root=doc.body||doc;
+        walker=doc.createTreeWalker(root,NodeFilter.SHOW_ELEMENT);
+      }else if(doc && doc.nodeType===1){
+        root=doc;
+        walker=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT);
+      }else{return a}
+    }catch(e){return a}
+    let n;
+    while(n=walker.nextNode()){
+      const t=n.tagName;if(!t)continue;
+      if(/^(H[1-6]|STRONG|B|TH|TD|SPAN|DIV|P|LABEL|DT)$/.test(t)){
+        const s=tx(n);if(!s)continue;
+        if(STRONG.test(s)){a.push({el:n,strong:true});continue}
+        if(WEAK.test(s))a.push({el:n,strong:false})
       }
+    }
+    return a
+  }
+  function lca(a,b){const s=new Set();let x=a;while(x){s.add(x);x=x.parentElement}let y=b;while(y){if(s.has(y))return y;y=y.parentElement}return null}
+  function expand(n){let c=n;for(let i=0;i<6;i++){if(!c.parentElement)break;if(tx(c).length>=150&&c.parentElement)break;const a=gather(c);let w=0,s=0;a.forEach(x=>{if(x.strong)s++;else w++});if((w>=2||s>=1)&&tx(c).length>=150)break;c=c.parentElement}return c}
+  function extractTitle(d){for(let i=1;i<=5;i++){const h=d.querySelector('h'+i);if(h&&tx(h))return tx(h)}return d.title}
+  function extractLeetCode(){try{if(!/leetcode\.(cn|com)$/.test(location.hostname))return null;let text='';const desc=document.querySelector('[data-track-load="description_content"]');if(desc&&tx(desc).length>60)text=tx(desc);if(!text){const d=document.querySelector('div[data-cy="description-content"]');if(d&&tx(d).length>60)text=tx(d)}let sig='';const vl=document.querySelector('.monaco-editor .view-lines');if(vl)sig=(vl.innerText||'').replace(/\u00a0/g,' ').split('\n').filter(s=>s.trim()).slice(0,40).join('\n').trim();if(!text&&!sig)return null;let out=text;if(sig)out+=(out?'\n\n':'')+'【代码模板/函数签名】\n'+sig;return {title:extractTitle(document),text:out}}catch(_){return null}}
+  function extract(){const lc=extractLeetCode();if(lc&&lc.text&&lc.text.length>=60)return lc;const docs=[document];document.querySelectorAll('iframe').forEach(f=>{try{if(f.contentDocument && typeof f.contentDocument.createTreeWalker==='function')docs.push(f.contentDocument)}catch(_){}});let best=null,bs=0;docs.forEach(doc=>{const a=gather(doc);if(!a.length)return;const st=a.filter(x=>x.strong),wk=a.filter(x=>!x.strong);let r;if(wk.length>=2){r=wk[0].el;for(let i=1;i<wk.length;i++)r=lca(r,wk[i].el)}else if(st.length)r=st[0].el;else r=a[0].el;if(!r)return;r=expand(r);const t=tx(r);if(t.length<80)return;const ag=gather(r);let s=0,w=0;ag.forEach(x=>{if(x.strong)s++;else w++});const sc=t.length+s*50+w*30;if(sc>bs){bs=sc;best={title:extractTitle(doc),text:t}}});if(best)return best;let f=null,fl=0;document.querySelectorAll('main,article,section,[role=main],.problem,.content,.description').forEach(e=>{const t=tx(e);if(t.length>fl){fl=t.length;f=e}});if(f)return{title:extractTitle(document),text:tx(f)};return{title:document.title,text:document.body.innerText}}
+  function buildPrompt(p){const m={study:'先给「## 思路」（关键观察、算法、正确性、复杂度），再给「## 代码」（完整可提交，带中文注释），最后给「## 边界与易错点」（3~5 条）。',code:'直接给完整可提交的代码，带必要中文注释，不要解释。',hint:'只给分步提示（每步一句话），不要给完整代码。'}[p.mode]||'';const isCpp=p.language.startsWith('C++');const FN=/class\s+Solution\b|def\s+\w+\s*\(\s*self\b/.test(p.problem||'');const langRule=isCpp?(FN?`这是「函数式题目」（LeetCode 风格）。必须用 ${p.language} 标准 C++ 语法：只给出完整的 class Solution 类并保持函数签名、方法名、参数、返回类型完全不变；不要写 main 函数；不要任何 cin/cout/printf/scanf 输入输出；不要自行构造测试数据；禁止 #include <bits/stdc++.h>，通常不需要任何 #include（平台已有默认环境）。`:`必须严格遵守 ${p.language} 现代 C++ 风格：
+
+【输入输出模板】（必须照这个写，禁止 printf/scanf/puts/gets）
+\`\`\`cpp
+#include <iostream>   // 只引入你实际用到的头文件，示例仅示意
+#include <vector>
+using namespace std;
+
+int main(){
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int n;
+    cin >> n;            // 读取整数
+    vector<int> a(n);
+    for(int i=0;i<n;i++) cin >> a[i];  // 读取数组
+    cout << ans << endl;   // 输出答案
+    return 0;
+}
+\`\`\`
+
+【禁止清单】出现以下任意一个都算错误答案：
+- printf / scanf / puts / gets / getchar
+- #include <stdio.h> / #include <cstdio>
+- %d %lld %s 等 C 风格格式符
+
+【必须使用】cin、cout、std::string、std::vector、std::map、std::set 等 C++ STL
+
+【头文件】禁止 #include <bits/stdc++.h> 万能头（编译很慢）。写完代码后逐个检查 include：只保留代码里真正用到的，没用到的一律删掉——没用 sort/min/max 就不许写 <algorithm>，没用 string 就不许写 <string>。对照表：vector→<vector>，string→<string>，sort/min/max/reverse/find→<algorithm>，map/set→<map>/<set>，unordered_map→<unordered_map>，queue/stack→<queue>/<stack>，pair→<utility>，sqrt/pow/floor→<cmath>，isdigit/tolower→<cctype>，INT_MAX→<climits>，accumulate→<numeric>，setprecision→<iomanip>
+
+【精度控制】需要保留 N 位小数时，必须 #include <iomanip>，然后写：
+    cout << fixed << setprecision(N) << x << endl;
+禁止用 printf("%.Nf", x) 这种 C 风格精度控制
+
+【换行】${(settings&&settings.codePrefs&&/\\n/.test(settings.codePrefs)&&!/endl/i.test(settings.codePrefs))?'遵循下方【用户代码偏好】，用户未另行说明的部分仍用 endl':'输出换行必须用 endl，禁止在字符串里写 "\\n" 换行'}，【大括号】if/else、for、while、do-while、switch、函数、结构体、类等所有语句块，执行体即使只有一行也必须用大括号 {} 包裹，禁止省略，方便后续修改`):(FN?`使用 ${p.language} 标准语法，只给出完整的类/函数实现（保持函数签名不变），不要 main 函数，不要读输入输出。`:`必须使用 ${p.language} 标准语法。`);const prefsLine=(settings&&settings.codePrefs&&settings.codePrefs.trim())?'\n\n【用户代码偏好】（AI 必须自主理解并严格遵守；本段与上方默认规则冲突时，以本段为准）：\n'+settings.codePrefs.trim():'';return `你是一名算法竞赛教练。请根据下面的题目，用${p.language}给出解答。\n\n${langRule}\n\n${m}\n\n要求：写完代码后必须自查一遍——逐个确认每个 #include 都被代码真正用到（没用的删掉）、没有多余变量和死代码、没有编译错误，确保提交即可通过编译；${FN?'代码只包含类定义（不要 main 函数、不要读输入输出），平台会自动调用它评测；':'代码必须能直接提交评测，用标准输入输出；'}不要读写文件，不要执行命令，不要调用工具；用 Markdown 格式回答。${prefsLine}\n\n【题目】${p.title||'(未命名)'}\n\n${p.problem}`}
+
+  const $=id=>drawer.querySelector(id);
+  const title=$('#ojh-title'),lang=$('#ojh-lang'),mode=$('#ojh-mode'),problem=$('#ojh-problem'),answer=$('#ojh-answer'),result=$('#ojh-result'),hint=$('#ojh-hint');
+  function refetch(){
+    const e=extract();
+    const fresh=(e.text||'').trim(), old=problem.value.trim();
+    // 陌生平台可能只抓到导航/页脚，若没抓到有效题面且用户已手动粘贴，则保留原内容，避免被覆盖
+    if(fresh.length<20 && old.length>=20){showToast('未抓到新题面，已保留当前内容');return}
+    title.value=e.title||title.value||'';
+    problem.value=e.text||'';
+    showToast('已抓取 '+problem.value.length+' 字');
+  }
+  $('#ojh-refetch').onclick=refetch;
+  async function generate(){refetch();await new Promise(r=>setTimeout(r,300));if(problem.value.length<20){showToast('题目太短，请先抓取');return}const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};window.__ojhCur=p;await copyText(buildPrompt(p));hint.style.display='block';answer.value=''}
+  $('#ojh-gen').onclick=generate;
+  $('#ojh-auto').onclick=async()=>{
+    if(window.__ojhBusy){showToast('正在生成中，请稍候');return}
+    const btn=$('#ojh-auto');
+    refetch();
+    const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};
+    // 先校验再进入「生成中」状态，避免题面为空时按钮永久卡在生成中
+    if(p.problem.length<20){showToast('没抓到题面，请在下方手动粘贴题目后重试');problem.focus();return}
+    window.__ojhBusy=true;window.__ojhCur=p;
+    btn.disabled=true;btn.textContent='生成中…';hint.style.display='block';
+    hint.innerHTML='<b>正在调用模型…</b><br>结果会直接显示在下方，全程不用切窗口。';
+    try{
+      const d=await (async ()=>{
+  for(let attempt=0; attempt<3; attempt++){
+    try{
+      if(!chrome.runtime||!chrome.runtime.id||!chrome.runtime.sendMessage) throw new Error('EXT_RELOAD');
+      return await new Promise((res,rej)=>{
+        try{chrome.runtime.sendMessage({type:'OJ_CHAT',payload:p},r=>{const le=chrome.runtime.lastError; if(le) rej(new Error(le.message)); else res(r||{});});}catch(e){rej(e);}
+      });
+    }catch(e){
+      const isConnectErr = (e.message||'').includes('Receiving end')||(e.message||'').includes('Could not establish');
+      if(isConnectErr && attempt<2){ await new Promise(r=>setTimeout(r,600)); continue; }
+      if(e.message==='EXT_RELOAD'||/Extension context invalidated/i.test(e.message||'')){ showToast('扩展已更新，请按 F5 刷新答题页'); throw new Error('扩展已更新，请按 F5 刷新页面后重试'); }
+      throw e;
+    }
+  }
+})();
+      if(!d.ok)throw new Error(d.error||'未知错误');
+      // 强制把 C 风格 IO 转成 C++ 风格（模型不听话时兜底）
+      let fixedAnswer = postProcess(d.answer, p);
+      if(fixedAnswer !== d.answer) showToast('已自动把 printf/scanf 转成 cin/cout');
       answer.value=fixedAnswer;result.innerHTML=renderMd(fixedAnswer);
       const h=await loadH();if(Array.isArray(h)){h.unshift({id:Date.now().toString(36),time:Date.now(),...p,result:fixedAnswer});while(h.length>MAX_HISTORY)h.pop();saveH(h)}
       hint.innerHTML='<b>生成完成 ✅</b><br>代码块右上角有「复制」，复制后粘到右侧编辑器提交即可。';
@@ -955,7 +964,12 @@ int main(){
     e.preventDefault();
     if(drawer.classList.contains('ojh-open')){
       const t=answer.value.trim();
-      if(t)copyText(t);else showToast('还没有可复制的内容');
+      if(!t){showToast('还没有可复制的内容');return}
+      // 先应用后处理（补大括号、头文件清理等），再提取纯代码
+      const processed=postProcess(t,{language:settings.language||'C++17',problem:''});
+      const code=extractCodeBlock(processed);
+      copyText(code);
+      showToast('已复制代码到剪贴板');
       return;
     }
     // 静默生成：不打开面板，直接走完整生成流程，完成后把结果复制到剪贴板
@@ -970,13 +984,10 @@ int main(){
           try{chrome.runtime.sendMessage({type:'OJ_CHAT',payload:p},r=>{const le=chrome.runtime.lastError;if(le)rej(new Error(le.message));else res(r||{});});}catch(err){rej(err);}
         });
         if(!d.ok)throw new Error(d.error||'未知错误');
-        let fixedAnswer=d.answer;
-        if(p.language.startsWith('C++')){
-          // 只提取代码块内容（防窥屏场景下不需要完整回答）
-          const codeMatch=fixedAnswer.match(/```(?:cpp|c\+\+)?\s*\n([\s\S]*?)```/);
-          if(codeMatch)fixedAnswer=codeMatch[1].trim();
-        }
-        await copyText(fixedAnswer);
+        // 复用 Alt+G 同款后处理（补大括号、头文件清理等），保证两边生成结果一致
+        const fixedAnswer=postProcess(d.answer,p);
+        const code=extractCodeBlock(fixedAnswer);
+        await copyText(code);
         showToast('代码已复制到剪贴板');
       }catch(err){showToast('生成失败：'+err.message.slice(0,30))}
       finally{window.__ojhBusy=false}
