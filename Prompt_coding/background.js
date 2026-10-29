@@ -271,7 +271,7 @@ const CMD_DEFAULTS = {
   ojh_generate: { field: 'hotkey', alt: true, ctrl: false, shift: false, key: 'g' },
   ojh_copy: { field: 'copyHotkey', alt: true, ctrl: false, shift: false, key: 'c' },
   ojh_toggle: { field: 'toggleHotkey', alt: true, ctrl: false, shift: false, key: 's' },
-  ojh_reset: { field: 'resetHotkey', alt: true, ctrl: false, shift: false, key: 'r' },
+  ojh_reset: { field: 'resetHotkey', alt: true, ctrl: false, shift: true, key: 'r' },
 };
 chrome.commands.onCommand.addListener(async (cmd) => {
   const actionMap = { ojh_generate: 'generate', ojh_copy: 'copysilent', ojh_toggle: 'toggle', ojh_reset: 'reset' };

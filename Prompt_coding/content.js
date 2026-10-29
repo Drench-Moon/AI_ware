@@ -18,7 +18,7 @@
   function topFire(action){try{window.top.postMessage({type:'__ojh_hotkey',action},'*')}catch(_){}}
   if(!IS_TOP){
     // 键位先用默认值同步绑定，保证沙箱 iframe 里 chrome.storage 不可用时快捷键依然生效
-    let hk={alt:true,key:'g'}, thk={alt:true,key:'s'}, chk={alt:true,key:'c'}, rhk={alt:true,key:'r'};
+    let hk={alt:true,key:'g'}, thk={alt:true,key:'s'}, chk={alt:true,key:'c'}, rhk={alt:true,shift:true,key:'r'};
     const dispatch=(e)=>{
       if(e.repeat)return;
       if(combo(e,hk)){e.preventDefault();e.stopPropagation();topFire('generate')}
@@ -690,7 +690,7 @@ int main(){
     }catch(_){}
     return '#2563eb';
   }
-  let settings={visible:false,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},copyHotkey:{alt:true,ctrl:false,shift:false,key:'c'},resetHotkey:{alt:true,ctrl:false,shift:false,key:'r'},theme:'blue',codePrefs:''};
+  let settings={visible:false,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},copyHotkey:{alt:true,ctrl:false,shift:false,key:'c'},resetHotkey:{alt:true,ctrl:false,shift:true,key:'r'},theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
@@ -732,7 +732,7 @@ int main(){
     }
   }
   function closeHkDialog(){cancelHkCapture();if(hkDialog){hkDialog.remove();hkDialog=null}}
-  function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'s'});if(field==='copyHotkey')return hkTextOf(settings.copyHotkey||{alt:true,ctrl:false,shift:false,key:'c'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Ctrl+Alt+R（默认）'}
+  function hkLabel(field){if(field==='hotkey')return hkTextOf(settings.hotkey);if(field==='toggleHotkey')return hkTextOf(settings.toggleHotkey||{alt:true,ctrl:false,shift:false,key:'s'});if(field==='copyHotkey')return hkTextOf(settings.copyHotkey||{alt:true,ctrl:false,shift:false,key:'c'});return settings.resetHotkey?hkTextOf(settings.resetHotkey):'Alt+Shift+R（默认）'}
   function startHkCapture(field,btn){
     cancelHkCapture();
     const lab=btn.closest('.ojh-hkrow').querySelector('.ojh-hkl');
@@ -923,10 +923,10 @@ int main(){
   });
   storage.get(SETTINGS_KEY).then(v=>{
     if(v&&typeof v==='object'){
-      // 旧版复位键是 Ctrl+Alt+R（浏览器不允许该组合），统一迁移到 Alt+R
+      // 旧版复位键依次是 Ctrl+Alt+R、Alt+R（前者浏览器不允许，后者与 AMD 性能浮层冲突），统一迁移到 Alt+Shift+R
       const rh=v.resetHotkey;
-      const isOldReset=rh&&!rh.shift&&rh.key==='r'&&rh.ctrl&&rh.alt;
-      if(!rh||isOldReset)v.resetHotkey={alt:true,ctrl:false,shift:false,key:'r'};
+      const isOldReset=rh&&rh.key==='r'&&!rh.shift&&((rh.ctrl&&rh.alt)||(rh.alt&&!rh.ctrl));
+      if(!rh||isOldReset)v.resetHotkey={alt:true,ctrl:false,shift:true,key:'r'};
       // 旧版默认显示/隐藏键依次是 Ctrl+Alt+S、Alt+H，升级后统一迁移到新的默认 Alt+S（用户自定义过的键位保持不变）
       const th=v.toggleHotkey;
       const isOldDefault=th&&!th.shift&&((th.key==='s'&&th.ctrl&&th.alt)||(th.key==='h'&&th.alt&&!th.ctrl));
@@ -939,7 +939,7 @@ int main(){
   chrome.runtime.onMessage.addListener(m=>{if(m&&m.type==='OJ_SUMMON'){settings.visible=true;applySettings();saveSettings()}});
   window.addEventListener('resize',()=>{if(!settings.visible)return;const r=fab.getBoundingClientRect();if(r.right>window.innerWidth||r.bottom>window.innerHeight||r.left<0||r.top<0){fab.style.left=Math.max(0,Math.min(window.innerWidth-56,r.left))+'px';fab.style.top=Math.max(0,Math.min(window.innerHeight-56,r.top))+'px';fab.style.bottom='auto'}});
   fab.onclick=e=>{if(e.shiftKey)return;if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){drawer.classList.remove('ojh-open')} else {applyOpen(); refetch(); checkUpdate()}};
-  // ===== OJ 按钮可拖动（位置自动保存，Alt+R 复位）=====
+  // ===== OJ 按钮可拖动（位置自动保存，Alt+Shift+R 复位）=====
   const FAB_POS_KEY='ojh_fab_pos_v1';
   storage.get(FAB_POS_KEY).then(p=>{if(p&&typeof p.x==='number'&&isFinite(p.x)){const x=Math.max(0,Math.min(window.innerWidth-56,p.x));const y=Math.max(0,Math.min(window.innerHeight-56,p.y));fab.style.left=x+'px';fab.style.top=y+'px';fab.style.bottom='auto'}}).catch(()=>{});
   let fabDrag=null,fabMoved=false;
