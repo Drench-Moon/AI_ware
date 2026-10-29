@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OJ 助手 · 算法生成器",
-  "version": "1.11.6",
+  "version": "1.11.7",
   "description": "程天学/力扣/洛谷/Codeforces/蓝桥/PTA/牛客/AcWing/AtCoder/VJudge 自动抓题+AI 生成",
   "permissions": ["storage", "alarms", "activeTab", "scripting"],
   "host_permissions": [
@@ -75,7 +75,7 @@
       "description": "显示/隐藏悬浮球"
     },
     "ojh_reset": {
-      "suggested_key": { "default": "Ctrl+Alt+R" },
+      "suggested_key": { "default": "Alt+R" },
       "description": "复位悬浮球位置"
     }
   }

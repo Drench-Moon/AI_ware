@@ -11,7 +11,7 @@
   function topFire(action){try{window.top.postMessage({type:'__ojh_hotkey',action},'*')}catch(_){}}
   if(!IS_TOP){
     // 键位先用默认值同步绑定，保证沙箱 iframe 里 chrome.storage 不可用时快捷键依然生效
-    let hk={alt:true,key:'g'}, thk={alt:true,key:'s'}, chk={alt:true,key:'c'}, rhk={ctrl:true,alt:true,key:'r'};
+    let hk={alt:true,key:'g'}, thk={alt:true,key:'s'}, chk={alt:true,key:'c'}, rhk={alt:true,key:'r'};
     const dispatch=(e)=>{
       if(e.repeat)return;
       if(combo(e,hk)){e.preventDefault();e.stopPropagation();topFire('generate')}
@@ -663,7 +663,7 @@ int main(){
     }catch(_){}
     return '#2563eb';
   }
-  let settings={visible:false,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},copyHotkey:{alt:true,ctrl:false,shift:false,key:'c'},resetHotkey:{ctrl:true,alt:true,shift:false,key:'r'},theme:'blue',codePrefs:''};
+  let settings={visible:false,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},copyHotkey:{alt:true,ctrl:false,shift:false,key:'c'},resetHotkey:{alt:true,ctrl:false,shift:false,key:'r'},theme:'blue',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
@@ -879,7 +879,10 @@ int main(){
   });
   storage.get(SETTINGS_KEY).then(v=>{
     if(v&&typeof v==='object'){
-      if(!v.resetHotkey)v.resetHotkey={ctrl:true,alt:true,shift:false,key:'r'};
+      // 旧版复位键是 Ctrl+Alt+R（浏览器不允许该组合），统一迁移到 Alt+R
+      const rh=v.resetHotkey;
+      const isOldReset=rh&&!rh.shift&&rh.key==='r'&&rh.ctrl&&rh.alt;
+      if(!rh||isOldReset)v.resetHotkey={alt:true,ctrl:false,shift:false,key:'r'};
       // 旧版默认显示/隐藏键依次是 Ctrl+Alt+S、Alt+H，升级后统一迁移到新的默认 Alt+S（用户自定义过的键位保持不变）
       const th=v.toggleHotkey;
       const isOldDefault=th&&!th.shift&&((th.key==='s'&&th.ctrl&&th.alt)||(th.key==='h'&&th.alt&&!th.ctrl));
@@ -892,7 +895,7 @@ int main(){
   chrome.runtime.onMessage.addListener(m=>{if(m&&m.type==='OJ_SUMMON'){settings.visible=true;applySettings();saveSettings()}});
   window.addEventListener('resize',()=>{if(!settings.visible)return;const r=fab.getBoundingClientRect();if(r.right>window.innerWidth||r.bottom>window.innerHeight||r.left<0||r.top<0){fab.style.left=Math.max(0,Math.min(window.innerWidth-56,r.left))+'px';fab.style.top=Math.max(0,Math.min(window.innerHeight-56,r.top))+'px';fab.style.bottom='auto'}});
   fab.onclick=e=>{if(e.shiftKey)return;if(fabMoved){fabMoved=false;return}const wasOpen=drawer.classList.contains('ojh-open'); if(wasOpen){drawer.classList.remove('ojh-open')} else {applyOpen(); refetch(); checkUpdate()}};
-  // ===== OJ 按钮可拖动（位置自动保存，Ctrl+Alt+R 复位）=====
+  // ===== OJ 按钮可拖动（位置自动保存，Alt+R 复位）=====
   const FAB_POS_KEY='ojh_fab_pos_v1';
   storage.get(FAB_POS_KEY).then(p=>{if(p&&typeof p.x==='number'&&isFinite(p.x)){const x=Math.max(0,Math.min(window.innerWidth-56,p.x));const y=Math.max(0,Math.min(window.innerHeight-56,p.y));fab.style.left=x+'px';fab.style.top=y+'px';fab.style.bottom='auto'}}).catch(()=>{});
   let fabDrag=null,fabMoved=false;
