@@ -674,23 +674,45 @@ int main(){
   // 相对亮度 0~1，用来判断颜色是深还是浅
   function lumOf(c){const p=parseColor(c);if(!p)return null;const f=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)};return 0.2126*f(p.r)+0.7152*f(p.g)+0.0722*f(p.b)}
   function mixWhite(c,p){const q=parseColor(c);if(!q)return c;const r=Math.round(q.r+(255-q.r)*p),g=Math.round(q.g+(255-q.g)*p),b=Math.round(q.b+(255-q.b)*p);return 'rgb('+r+','+g+','+b+')'}
-  // 深色页面检测到的黑/深灰会让球融进背景，提亮到可见但仍接近页面色调
-  function adaptColor(c){const lum=lumOf(c);if(lum===null)return '#2563eb';return lum<0.18?mixWhite(c,0.45):c}
+  function mixBlack(c,p){const q=parseColor(c);if(!q)return c;const r=Math.round(q.r*(1-p)),g=Math.round(q.g*(1-p)),b=Math.round(q.b*(1-p));return 'rgb('+r+','+g+','+b+')'}
+  // 深色背景提亮避免"黑球贴黑底"；接近纯白的背景压暗一点，避免"白球消失在白底"
+  function adaptColor(c){
+    const lum=lumOf(c);if(lum===null)return '#2563eb';
+    if(lum<0.18)return mixWhite(c,0.45);
+    if(lum>0.88)return mixBlack(c,0.4);
+    return c;
+  }
   // 背景是浅色时自动换成深色文字，避免"白球+白字"看不清
-  function fgOf(c){const lum=lumOf(c);return (lum!==null&&lum>0.6)?'#0f172a':'#ffffff'}
-  // 从当前页面提取主题色：优先 theme-color meta，其次 html/body 背景色，最后标题栏颜色
+  function fgOf(c){const lum=lumOf(c);return (lum!==null&&lum>0.55)?'#0f172a':'#ffffff'}
+  // 从当前页面提取主题色：先取真实页面底色（body 向上找第一个不透明背景），
+  // meta theme-color 常常是品牌蓝、和页面深浅无关，所以放到后面当备选
   function detectSiteTheme(){
     try{
+      let el=document.body;
+      while(el&&el!==document){
+        const bg=getComputedStyle(el).backgroundColor;
+        if(parseColor(bg))return bg;
+        if(el===document.documentElement)break;
+        el=el.parentElement;
+      }
       const meta=document.querySelector('meta[name="theme-color"]');
       if(meta&&meta.content&&parseColor(meta.content))return meta.content.trim();
-      const els=[document.body,document.documentElement];
-      for(const el of els){if(!el)continue;const bg=getComputedStyle(el).backgroundColor;if(parseColor(bg))return bg}
       const header=document.querySelector('header,.header,.navbar,.nav,.top-bar,[class*="header"],[class*="nav"]');
       if(header){const c=getComputedStyle(header).backgroundColor;if(parseColor(c))return c}
+      // 兜底：找占比最大的一块不透明容器（很多 SPA 把底色画在 #app / #root / main 这类节点上）
+      const area=window.innerWidth*window.innerHeight;
+      for(const s of ['#app','#root','#main','main','.main','.container','body>div']){
+        const n=document.querySelector(s);
+        if(!n)continue;
+        const r=n.getBoundingClientRect();
+        if(r.width*r.height<area*0.3)continue;
+        const c=getComputedStyle(n).backgroundColor;
+        if(parseColor(c))return c;
+      }
     }catch(_){}
     return '#2563eb';
   }
-  let settings={visible:false,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},copyHotkey:{alt:true,ctrl:false,shift:false,key:'c'},resetHotkey:{alt:true,ctrl:false,shift:true,key:'r'},theme:'blue',codePrefs:''};
+  let settings={visible:false,hotkey:{alt:true,ctrl:false,shift:false,key:'g'},toggleHotkey:{alt:true,ctrl:false,shift:false,key:'s'},copyHotkey:{alt:true,ctrl:false,shift:false,key:'c'},resetHotkey:{alt:true,ctrl:false,shift:true,key:'r'},theme:'site',codePrefs:''};
   function saveSettings(){storage.set(SETTINGS_KEY,settings)}
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
@@ -931,6 +953,8 @@ int main(){
       const th=v.toggleHotkey;
       const isOldDefault=th&&!th.shift&&((th.key==='s'&&th.ctrl&&th.alt)||(th.key==='h'&&th.alt&&!th.ctrl));
       if(!th||isOldDefault)v.toggleHotkey={alt:true,ctrl:false,shift:false,key:'s'};
+      // 老用户默认一直是 blue，没做「当前网址主题」的迁移；统一切到跟随页面（只迁一次，之后手动改的不动）
+      if(!v.themeSiteMigrated){if(!v.theme||v.theme==='blue')v.theme='site';v.themeSiteMigrated=true}
       settings=Object.assign(settings,v);applySettings();applyTheme();fab.title='OJ 助手 ('+hkText()+')'
     }
   }).catch(()=>{});
