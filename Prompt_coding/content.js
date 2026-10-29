@@ -35,6 +35,12 @@
         hk=cfg.hotkey||hk; thk=cfg.toggleHotkey||thk; chk=cfg.copyHotkey||chk; rhk=cfg.resetHotkey||rhk;
       });
     }catch(_){}
+    // 热重载探活：应答 background 的 ping，证明本帧脚本仍然可用
+    try{
+      chrome.runtime.onMessage.addListener((m,s,sendResponse)=>{
+        if(m&&m.type==='__ojh_ping'){try{sendResponse({ok:true})}catch(_){};return true}
+      });
+    }catch(_){}
     return; // 子 frame 到此结束，不创建 UI、不调模型
   }
 
@@ -1108,9 +1114,10 @@ int main(){
     if(ev.source===window)return;
     if(ev.data&&ev.data.type==='__ojh_hotkey'){fire(ev.data.action)}
   });
-  // 接收 background 的 chrome.commands API 触发（最高优先级兜底）
+  // 接收 background 消息：__ojh_cmds_action = 扩展级快捷键；__ojh_ping = 热重载探活
   try{
-    chrome.runtime.onMessage.addListener((msg,sender)=>{
+    chrome.runtime.onMessage.addListener((msg,sender,sendResponse)=>{
+      if(msg&&msg.type==='__ojh_ping'){try{sendResponse({ok:true})}catch(_){};return true}
       if(msg&&msg.type==='__ojh_cmds_action'&&sender&&sender.tab){fire(msg.action)}
     });
   }catch(_){}

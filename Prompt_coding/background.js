@@ -17,6 +17,69 @@ chrome.runtime.onInstalled.addListener(async () => {
   checkForUpdate();
 });
 
+/* ===== 扩展更新/重载后自动恢复：免页面刷新，避免打断沉浸刷题计时 =====
+   reload 或升级后，已打开页面里的旧 content script 上下文会失效（chrome.* 变成 null），
+   以前只能按 F5 才能恢复。这里在 SW 每次启动时做两件事：
+   1) 对每个已打开的网页发 ping，没人应答说明旧脚本已死 → 清理旧 UI 并重新注入；
+   2) 版本号变化（升级）时对所有页面强制重注入，让新代码立即生效。 */
+(async () => {
+  try {
+    const VER_KEY = 'ojh_installed_version';
+    const cur = chrome.runtime.getManifest().version;
+    const got = await chrome.storage.local.get(VER_KEY);
+    const upgraded = !!got[VER_KEY] && got[VER_KEY] !== cur;
+    await chrome.storage.local.set({ [VER_KEY]: cur });
+
+    // 该函数会被序列化后注入页面，必须完全自包含
+    const clean = function () {
+      try {
+        document.querySelectorAll('[id^="ojh-"]').forEach(function (el) { el.remove(); });
+        document.querySelectorAll('style').forEach(function (s) {
+          if (s.textContent && s.textContent.indexOf('#ojh-fab') !== -1) s.remove();
+        });
+        delete window.__ojhGuard;
+        delete window.__ojhInjected;
+      } catch (e) {}
+      return true;
+    };
+
+    // 探活：能应答说明该页面的 content script 还能用
+    function alive(tabId) {
+      return Promise.race([
+        chrome.tabs.sendMessage(tabId, { type: '__ojh_ping' })
+          .then(function (r) { return !!(r && r.ok); })
+          .catch(function () { return false; }),
+        new Promise(function (res) { setTimeout(function () { res(true); }, 2000); }),
+      ]);
+    }
+
+    async function reinject(tabId) {
+      const tries = [
+        { allFrames: true, matchOriginAsFallback: true },
+        { allFrames: true },
+        {},
+      ];
+      for (const opt of tries) {
+        try {
+          const target = Object.assign({ tabId: tabId }, opt);
+          await chrome.scripting.executeScript({ target: target, func: clean });
+          await chrome.scripting.executeScript({ target: target, files: ['content.js'] });
+          return true;   // 注入成功，不用再降级重试
+        } catch (e) { /* 换下一组参数重试 */ }
+      }
+      return false;
+    }
+
+    const tabs = await chrome.tabs.query({});
+    for (const t of tabs) {
+      if (!t || typeof t.id !== 'number') continue;
+      if (t.url && !/^https?:/i.test(t.url)) continue;   // 跳过 chrome:// / edge:// 等
+      if (!upgraded && await alive(t.id)) continue;      // 旧脚本还活着就不动它
+      await reinject(t.id);
+    }
+  } catch (_) {}
+})();
+
 /* ===== 新版本检查（对比 GitHub 仓库里的 manifest.json）===== */
 const UPDATE_KEY = 'ojh_update_info';
 /* 多源兜底：部分网络/加速器会把 raw.githubusercontent.com 解析到本机回环地址，
