@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OJ 助手 · 算法生成器",
-  "version": "1.11.3",
+  "version": "1.11.4",
   "description": "程天学/力扣/洛谷/Codeforces/蓝桥/PTA/牛客/AcWing/AtCoder/VJudge 自动抓题+AI 生成",
   "permissions": ["storage", "alarms", "activeTab", "scripting"],
   "host_permissions": [
@@ -49,12 +49,30 @@
         "https://*/*"
       ],
       "js": ["content.js"],
-      "run_at": "document_idle",
+      "run_at": "document_start",
       "all_frames": true
     }
   ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "OJ 助手"
+  },
+  "commands": {
+    "ojh_generate": {
+      "suggested_key": { "default": "Alt+G" },
+      "description": "抓题生成"
+    },
+    "ojh_copy": {
+      "suggested_key": { "default": "Alt+C" },
+      "description": "静默生成并复制代码"
+    },
+    "ojh_toggle": {
+      "suggested_key": { "default": "Alt+S" },
+      "description": "显示/隐藏悬浮球"
+    },
+    "ojh_reset": {
+      "suggested_key": { "default": "Ctrl+Alt+R" },
+      "description": "复位悬浮球位置"
+    }
   }
 }

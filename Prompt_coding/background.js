@@ -199,3 +199,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   })();
   return true;
 });
+
+/* ===== chrome.commands 扩展级快捷键（最高优先级，即使页面 stopImmediatePropagation 也拦不住）=====
+   发消息给当前活动 tab 的 content script，content script 收到后走 fire() 执行 */
+chrome.commands.onCommand.addListener(async (cmd) => {
+  const actionMap = { ojh_generate: 'generate', ojh_copy: 'copysilent', ojh_toggle: 'toggle', ojh_reset: 'reset' };
+  const action = actionMap[cmd];
+  if (!action) return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab || !tab.id) return;
+    chrome.tabs.sendMessage(tab.id, { type: '__ojh_cmds_action', action });
+  } catch (_) { /* tab 可能没有 content script，比如 chrome:// 页面，静默忽略 */ }
+});

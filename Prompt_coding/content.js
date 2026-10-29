@@ -5,8 +5,10 @@
 
   // iframe 子 frame：只注册键盘监听，快捷键时 postMessage 给顶层 frame
   // 这样刷题网站 iframe 全屏模式下快捷键依然有效
+  // run_at: document_start 保证在网站脚本之前绑定，避免 stopImmediatePropagation 拦截
   const IS_TOP = window === window.top;
   const combo=(e,hk)=>{const k=(e.key||'').toLowerCase();return k===hk.key&&e.altKey===!!hk.alt&&e.ctrlKey===!!hk.ctrl&&e.shiftKey===!!hk.shift};
+  function topFire(action){try{window.top.postMessage({type:'__ojh_hotkey',action},'*')}catch(_){}}
   if(!IS_TOP){
     try{
       chrome.storage.local.get(['hotkey','toggleHotkey','copyHotkey','resetHotkey'],cfg=>{
@@ -14,13 +16,25 @@
         const thk=cfg.toggleHotkey||{alt:true,key:'s'};
         const chk=cfg.copyHotkey||{alt:true,key:'c'};
         const rhk=cfg.resetHotkey||{ctrl:true,alt:true,key:'r'};
-        document.addEventListener('keydown',e=>{
+        const dispatch=(e)=>{
           if(e.repeat)return;
-          if(combo(e,hk)){e.preventDefault();window.top.postMessage({type:'__ojh_hotkey',action:'generate'},'*')}
-          else if(combo(e,chk)){e.preventDefault();window.top.postMessage({type:'__ojh_hotkey',action:'copysilent'},'*')}
-          else if(combo(e,thk)){e.preventDefault();window.top.postMessage({type:'__ojh_hotkey',action:'toggle'},'*')}
-          else if(rhk.key!=='none'&&combo(e,rhk)){e.preventDefault();window.top.postMessage({type:'__ojh_hotkey',action:'reset'},'*')}
-        },true);
+          if(combo(e,hk)){e.preventDefault();topFire('generate')}
+          else if(combo(e,chk)){e.preventDefault();topFire('copysilent')}
+          else if(combo(e,thk)){e.preventDefault();topFire('toggle')}
+          else if(rhk.key!=='none'&&combo(e,rhk)){e.preventDefault();topFire('reset')}
+        };
+        // 绑定到 document（最早的元素，document_start 时就能拿到）
+        document.addEventListener('keydown',dispatch,true);
+        // 绑定到 window（有些网站 document 的事件被拦了，window 的还能收到）
+        window.addEventListener('keydown',dispatch,true);
+        // 子 frame 内也可能有 requestFullscreen（iframe 自己变成全屏元素）
+        function rebindSubFs(){
+          const fe=document.fullscreenElement;
+          if(!fe)return;
+          fe.addEventListener('keydown',dispatch,true);
+        }
+        document.addEventListener('fullscreenchange',rebindSubFs);
+        setTimeout(rebindSubFs,300);
       });
     }catch(_){}
     return; // 子 frame 到此结束，不创建 UI、不调模型
@@ -974,49 +988,51 @@ int main(){
   });
 
   function matchHotkey(e){return combo(e,settings.hotkey)}
-  // 复位快捷键（键盘组合，默认 Ctrl+Alt+R；设为"无"则彻底禁用）
-  document.addEventListener('keydown',e=>{const rhk=settings.resetHotkey;if(rhk&&rhk.key!=='none'&&!e.repeat&&combo(e,rhk)){e.preventDefault();resetFab()}});
-  fab.ondblclick=e=>{showToast('复位快捷键：'+hkLabel('resetHotkey')+'（右键悬浮球可修改）')};
-  // 生成快捷键：只负责抓题生成，不改变悬浮球显示状态（两者完全隔离）
-  document.addEventListener('keydown',e=>{if(matchHotkey(e)&&!e.repeat){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click()}});
-  // 复制快捷键 Alt+C：面板未显示→静默生成并复制代码；面板已显示→直接复制当前答案
-  document.addEventListener('keydown',e=>{
+  // 统一键盘事件分发：4 个快捷键用同一套 dispatch，绑到 document 和 window 双保险
+  function topDispatch(e){
+    if(e.repeat)return;
+    const rhk=settings.resetHotkey;
+    if(rhk&&rhk.key!=='none'&&combo(e,rhk)){e.preventDefault();resetFab();return}
+    if(matchHotkey(e)){e.preventDefault();applyOpen();refetch();$('#ojh-auto').click();return}
     const chk=settings.copyHotkey;
-    if(!chk||chk.key==='none'||e.repeat||!combo(e,chk))return;
-    e.preventDefault();
-    if(drawer.classList.contains('ojh-open')){
-      const t=answer.value.trim();
-      if(!t){showToast('还没有可复制的内容');return}
-      // 先应用后处理（补大括号、头文件清理等），再提取纯代码
-      const processed=postProcess(t,{language:settings.language||'C++17',problem:''});
-      const code=extractCodeBlock(processed);
-      copyText(code);
-      showToast('已复制代码到剪贴板');
+    if(chk&&chk.key!=='none'&&combo(e,chk)){
+      e.preventDefault();
+      if(drawer.classList.contains('ojh-open')){
+        const t=answer.value.trim();
+        if(!t){showToast('还没有可复制的内容');return}
+        const processed=postProcess(t,{language:settings.language||'C++17',problem:''});
+        const code=extractCodeBlock(processed);
+        copyText(code);
+        showToast('已复制代码到剪贴板');
+        return;
+      }
+      if(window.__ojhBusy){showToast('正在生成中，请稍候');return}
+      refetch();
+      const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};
+      if(p.problem.length<20){showToast('没抓到题面，请手动粘贴题目后再按 '+hkTextOf(chk));return}
+      window.__ojhBusy=true;showToast('正在静默生成…');
+      (async()=>{
+        try{
+          const d=await new Promise((res,rej)=>{
+            try{chrome.runtime.sendMessage({type:'OJ_CHAT',payload:p},r=>{const le=chrome.runtime.lastError;if(le)rej(new Error(le.message));else res(r||{});});}catch(err){rej(err);}
+          });
+          if(!d.ok)throw new Error(d.error||'未知错误');
+          const fixedAnswer=postProcess(d.answer,p);
+          const code=extractCodeBlock(fixedAnswer);
+          await copyText(code);
+          showToast('代码已复制到剪贴板');
+        }catch(err){showToast('生成失败：'+err.message.slice(0,30))}
+        finally{window.__ojhBusy=false}
+      })();
       return;
     }
-    // 静默生成：不打开面板，直接走完整生成流程，完成后把结果复制到剪贴板
-    if(window.__ojhBusy){showToast('正在生成中，请稍候');return}
-    refetch();
-    const p={title:title.value.trim(),language:lang.value,mode:mode.value,problem:problem.value.trim()};
-    if(p.problem.length<20){showToast('没抓到题面，请手动粘贴题目后再按 '+hkTextOf(chk));return}
-    window.__ojhBusy=true;showToast('正在静默生成…');
-    (async()=>{
-      try{
-        const d=await new Promise((res,rej)=>{
-          try{chrome.runtime.sendMessage({type:'OJ_CHAT',payload:p},r=>{const le=chrome.runtime.lastError;if(le)rej(new Error(le.message));else res(r||{});});}catch(err){rej(err);}
-        });
-        if(!d.ok)throw new Error(d.error||'未知错误');
-        // 复用 Alt+G 同款后处理（补大括号、头文件清理等），保证两边生成结果一致
-        const fixedAnswer=postProcess(d.answer,p);
-        const code=extractCodeBlock(fixedAnswer);
-        await copyText(code);
-        showToast('代码已复制到剪贴板');
-      }catch(err){showToast('生成失败：'+err.message.slice(0,30))}
-      finally{window.__ojhBusy=false}
-    })();
-  });
-  // 显示/隐藏快捷键：默认 Ctrl+Alt+S，按一次隐藏、再按一次显示
-  document.addEventListener('keydown',e=>{const thk=settings.toggleHotkey;if(thk&&thk.key!=='none'&&!e.repeat&&combo(e,thk)){e.preventDefault();toggleFab()}});
+    const thk=settings.toggleHotkey;
+    if(thk&&thk.key!=='none'&&combo(e,thk)){e.preventDefault();toggleFab();return}
+  }
+  // document_start 时 content script 就运行，绑在网站脚本之前，stopImmediatePropagation 拦不住
+  document.addEventListener('keydown',topDispatch,true);
+  window.addEventListener('keydown',topDispatch,true);
+  fab.ondblclick=e=>{showToast('复位快捷键：'+hkLabel('resetHotkey')+'（右键悬浮球可修改）')};
   drawer.addEventListener('click',e=>{const b=e.target.closest('.ojh-cp');if(b)copyText(decodeURIComponent(b.dataset.code))});
 
   if(isOJ){const pill=document.createElement('div');pill.className='ojh-pill';pill.textContent='OJ 注入 OK';document.documentElement.appendChild(pill);setTimeout(()=>pill.remove(),3000);}
@@ -1052,7 +1068,7 @@ int main(){
     }
   });
 
-  // === 顶层 frame：接收 iframe 子 frame 转发来的快捷键 ===
+  // === 顶层 frame：接收 iframe 子 frame 转发 + 扩展 commands API 的快捷键 ===
   const fire=(action)=>{
     try{
       if(action==='generate'){applyOpen();refetch();$('#ojh-auto').click()}
@@ -1089,30 +1105,35 @@ int main(){
       }
     }catch(e){console.error('[OJ] action error',e)}
   };
+  // 接收 iframe 子 frame postMessage 转发
   window.addEventListener('message',ev=>{
-    if(ev.source===window)return; // 忽略自己发的
+    if(ev.source===window)return;
     if(ev.data&&ev.data.type==='__ojh_hotkey'){fire(ev.data.action)}
   });
+  // 接收 background 的 chrome.commands API 触发（最高优先级兜底）
+  try{
+    chrome.runtime.onMessage.addListener((msg,sender)=>{
+      if(msg&&msg.type==='__ojh_cmds_action'&&sender&&sender.tab){fire(msg.action)}
+    });
+  }catch(_){}
 
   // === requestFullscreen 全屏元素也绑定 keydown ===
   // 有些网站用 requestFullscreen() 让 iframe 全屏，键盘事件只发给全屏元素
+  // 再给 window 也绑一份，双重保险
   function rebindFullscreen(){
     const fe=document.fullscreenElement;
     if(!fe)return;
-    // 解绑旧的（如果 fe 变了）
     if(window.__ojhFsEl){try{window.__ojhFsEl.removeEventListener('keydown',window.__ojhFsKd,true)}catch(_){}}
-    function fsKd(e){
-      const rhk=settings.resetHotkey;
-      if(rhk&&rhk.key!=='none'&&!e.repeat&&combo(e,rhk)){e.preventDefault();fire('reset');return}
-      if(matchHotkey(e)&&!e.repeat){e.preventDefault();fire('generate');return}
-      const chk=settings.copyHotkey;
-      if(chk&&chk.key!=='none'&&!e.repeat&&combo(e,chk)){e.preventDefault();fire('copysilent');return}
-      const thk=settings.toggleHotkey;
-      if(thk&&thk.key!=='none'&&!e.repeat&&combo(e,thk)){e.preventDefault();fire('toggle');return}
-    }
+    function fsKd(e){topDispatch(e)} // 直接复用 topDispatch，逻辑完全一致
     fe.addEventListener('keydown',fsKd,true);
     window.__ojhFsEl=fe; window.__ojhFsKd=fsKd;
   }
   document.addEventListener('fullscreenchange',rebindFullscreen);
-  setTimeout(rebindFullscreen,500); // 延迟再绑一次，等网站的全屏初始化完成
+  // 初始尝试 + 300ms/800ms/1500ms 再试 —— 网站的全屏初始化可能晚于 content script
+  setTimeout(rebindFullscreen,300);
+  setTimeout(rebindFullscreen,800);
+  setTimeout(rebindFullscreen,1500);
+  // 再用 setInterval 兜底，持续尝试 10 秒后停（有些网站切题后才进入全屏）
+  const _fsInterval=setInterval(()=>{rebindFullscreen()},2000);
+  setTimeout(()=>clearInterval(_fsInterval),12000);
 })();
