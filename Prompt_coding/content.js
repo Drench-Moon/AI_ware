@@ -10,31 +10,29 @@
   const combo=(e,hk)=>{const k=(e.key||'').toLowerCase();return k===hk.key&&e.altKey===!!hk.alt&&e.ctrlKey===!!hk.ctrl&&e.shiftKey===!!hk.shift};
   function topFire(action){try{window.top.postMessage({type:'__ojh_hotkey',action},'*')}catch(_){}}
   if(!IS_TOP){
+    // 键位先用默认值同步绑定，保证沙箱 iframe 里 chrome.storage 不可用时快捷键依然生效
+    let hk={alt:true,key:'g'}, thk={alt:true,key:'s'}, chk={alt:true,key:'c'}, rhk={ctrl:true,alt:true,key:'r'};
+    const dispatch=(e)=>{
+      if(e.repeat)return;
+      if(combo(e,hk)){e.preventDefault();e.stopPropagation();topFire('generate')}
+      else if(combo(e,chk)){e.preventDefault();e.stopPropagation();topFire('copysilent')}
+      else if(combo(e,thk)){e.preventDefault();e.stopPropagation();topFire('toggle')}
+      else if(rhk.key!=='none'&&combo(e,rhk)){e.preventDefault();e.stopPropagation();topFire('reset')}
+    };
+    // 绑定到 document 和 window（捕获阶段，且早于编辑器脚本注册）
+    document.addEventListener('keydown',dispatch,true);
+    window.addEventListener('keydown',dispatch,true);
+    // 编辑器可能把焦点放进它自己的全屏元素或 shadow 容器
+    const rebindSubFs=()=>{
+      const fe=document.fullscreenElement;
+      if(fe&&fe!==window.__ojhSubFs){fe.addEventListener('keydown',dispatch,true);window.__ojhSubFs=fe}
+    };
+    document.addEventListener('fullscreenchange',rebindSubFs);
+    setTimeout(rebindSubFs,300); setTimeout(rebindSubFs,1200);
+    // 异步读取用户自定义键位，读不到就保持默认
     try{
       chrome.storage.local.get(['hotkey','toggleHotkey','copyHotkey','resetHotkey'],cfg=>{
-        const hk=cfg.hotkey||{alt:true,key:'g'};
-        const thk=cfg.toggleHotkey||{alt:true,key:'s'};
-        const chk=cfg.copyHotkey||{alt:true,key:'c'};
-        const rhk=cfg.resetHotkey||{ctrl:true,alt:true,key:'r'};
-        const dispatch=(e)=>{
-          if(e.repeat)return;
-          if(combo(e,hk)){e.preventDefault();topFire('generate')}
-          else if(combo(e,chk)){e.preventDefault();topFire('copysilent')}
-          else if(combo(e,thk)){e.preventDefault();topFire('toggle')}
-          else if(rhk.key!=='none'&&combo(e,rhk)){e.preventDefault();topFire('reset')}
-        };
-        // 绑定到 document（最早的元素，document_start 时就能拿到）
-        document.addEventListener('keydown',dispatch,true);
-        // 绑定到 window（有些网站 document 的事件被拦了，window 的还能收到）
-        window.addEventListener('keydown',dispatch,true);
-        // 子 frame 内也可能有 requestFullscreen（iframe 自己变成全屏元素）
-        function rebindSubFs(){
-          const fe=document.fullscreenElement;
-          if(!fe)return;
-          fe.addEventListener('keydown',dispatch,true);
-        }
-        document.addEventListener('fullscreenchange',rebindSubFs);
-        setTimeout(rebindSubFs,300);
+        hk=cfg.hotkey||hk; thk=cfg.toggleHotkey||thk; chk=cfg.copyHotkey||chk; rhk=cfg.resetHotkey||rhk;
       });
     }catch(_){}
     return; // 子 frame 到此结束，不创建 UI、不调模型
