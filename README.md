@@ -1,13 +1,13 @@
 # AI_ware
 
-AI 工具集——把日常用得到的 AI 能力封装成即装即用的软件。
+This repository mainly stores plugins and scripts written entirely by AI, ready to help anyone who needs them.
 
-## 子项目
+## Subprojects
 
-| 目录 | 说明 |
+| Directory | Description |
 |---|---|
-| [Prompt_coding](./Prompt_coding) | Edge / Chrome 浏览器扩展：OJ 题面一键抓取 + AI 生成代码（支持 10 大 OJ 平台）|
+| [Prompt_coding](./Prompt_coding) | Edge / Chrome browser extension: one-click OJ problem capture + AI-generated code (supports 10 major OJ platforms) |
 
-## 下载
+## Download
 
-前往 **[Releases](https://github.com/Drench-Moon/AI_ware/releases/latest)** 下载最新版 `Prompt_coding.zip`，解压后在浏览器扩展页「加载解压缩的扩展」即可。
+Go to **[Releases](https://github.com/Drench-Moon/AI_ware/releases/latest)** to download the latest `Prompt_coding.zip`, unzip it, and load the unpacked extension from your browser's extensions page.
