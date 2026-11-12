@@ -1,6 +1,6 @@
 # AI_ware
 
-This repository mainly stores plugins and scripts written entirely by AI, ready to help anyone who needs them.
+This repository mainly stores plugins and scripts written **entirely** by AI, ready to help anyone who needs them.
 
 ## Subprojects
 
