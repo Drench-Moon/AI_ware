@@ -153,6 +153,7 @@
 
   const fab = document.createElement('div');
   fab.id = 'ojh-fab'; fab.textContent = 'OJ'; fab.title = 'OJ 助手 (Alt+G)';
+  fab.style.display = 'none';   // 默认隐藏，等设置读取后再由 applySettings 决定是否显示
   document.documentElement.appendChild(fab);
 
   const drawer = document.createElement('div');
@@ -717,7 +718,9 @@ int main(){
   function hkTextOf(hk){if(hk.key==='none')return '无';return (hk.ctrl?'Ctrl+':'')+(hk.alt?'Alt+':'')+(hk.shift?'Shift+':'')+hk.key.toUpperCase()}
   function hkText(){return hkTextOf(settings.hotkey)}
   function clampFab(){const r=fab.getBoundingClientRect();if(r.left>window.innerWidth-10||r.top>window.innerHeight-10){fab.style.left=Math.max(0,window.innerWidth-72)+'px';fab.style.top=Math.max(0,window.innerHeight-72)+'px';fab.style.bottom='auto'}}
-  function applySettings(){fab.style.display=settings.visible?'flex':'none';if(settings.visible)clampFab()}
+  function applySettings(){fab.style.setProperty('display',settings.visible?'flex':'none','important');if(settings.visible)clampFab()}
+  // 以「实际显示状态」为准取反：避免 settings.visible 与真实 DOM 状态不同步时，连按都只走"显示"分支
+  function fabShown(){try{return fab.style.display!=='none'&&getComputedStyle(fab).display!=='none'}catch(_){return !!settings.visible}}
   function setThemeVars(c1,c2){
     document.documentElement.style.setProperty('--ojh-c1',c1);
     document.documentElement.style.setProperty('--ojh-c2',c2);
@@ -744,7 +747,7 @@ int main(){
     else{const t=THEMES[settings.theme]||THEMES.blue;c1=t[0];c2=t[1]}
     setThemeVars(c1,c2);
   }
-  function toggleFab(){settings.visible=!settings.visible;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示':'悬浮球已隐藏，按 '+hkTextOf(settings.toggleHotkey)+' 可再次显示')}
+  function toggleFab(){settings.visible=!fabShown();window.__ojhUserToggled=true;applySettings();saveSettings();showToast(settings.visible?'悬浮球已显示':'悬浮球已隐藏，按 '+hkTextOf(settings.toggleHotkey)+' 可再次显示')}
   // ===== 快捷键设置弹窗：设置过程中弹窗保持打开，行内实时反馈 =====
   let hkDialog=null,hkCapture=null;
   function cancelHkCapture(){
@@ -973,6 +976,8 @@ int main(){
       if(!th||isOldDefault)v.toggleHotkey={alt:true,ctrl:false,shift:false,key:'s'};
       // 老用户默认一直是 blue，没做「当前网址主题」的迁移；统一切到跟随页面（只迁一次，之后手动改的不动）
       if(!v.themeSiteMigrated){if(!v.theme||v.theme==='blue')v.theme='site';v.themeSiteMigrated=true}
+      // 用户已经按过显隐键：别让这次迟到的读取把刚切换的显示状态覆盖回去
+      if(window.__ojhUserToggled)delete v.visible;
       settings=Object.assign(settings,v);applySettings();applyTheme();fab.title='OJ 助手 ('+hkText()+')'
     }
   }).catch(()=>{});
