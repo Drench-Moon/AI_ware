@@ -825,12 +825,25 @@ int main(){
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('copyHotkey')}</div><div class="ojh-hkd">静默生成并复制代码到剪贴板（不显示面板）</div></div><button class="ojh-hkbtn" data-f="copyHotkey">修改</button></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('toggleHotkey')}</div><div class="ojh-hkd">显示/隐藏悬浮球：按一次隐藏，再按一次显示</div></div><button class="ojh-hkbtn" data-f="toggleHotkey">修改</button></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="ojh-hkbtn" data-f="resetHotkey">修改</button><button class="ojh-hkbtn" id="ojh-hknone">设为无</button></div></div>
+      <div class="ojh-hkrow" style="border-top:1px solid #e2e8f0"><div><div class="ojh-hkl">恢复默认快捷键</div><div class="ojh-hkd">Alt+G 生成 / Alt+C 静默复制 / Alt+S 显隐 / Alt+Shift+R 复位</div></div><button class="ojh-hkbtn" id="ojh-hkreset">恢复默认</button></div>
       <div class="ojh-hktip">点「修改」后按键盘组合即可（需含 Ctrl/Alt/Shift 至少一个，Esc 取消）；复位快捷键可「设为无」彻底禁用。生成快捷键与显示/隐藏快捷键互相独立：悬浮球隐藏时生成快捷键仍能生成代码，但不会把悬浮球带出来。</div>`;
     attachOjh(hkDialog);
     placeDialog(hkDialog);makeDraggable(hkDialog);
     hkDialog.querySelector('#ojh-hkclose').onclick=closeHkDialog;
     hkDialog.querySelector('#ojh-hknone').onclick=()=>{cancelHkCapture();settings.resetHotkey={key:'none'};saveSettings();const lab=hkDialog.querySelectorAll('.ojh-hkl')[3];lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent='无';showToast('复位快捷键已设为无')};
     hkDialog.querySelectorAll('.ojh-hkbtn[data-f]').forEach(btn=>btn.onclick=()=>startHkCapture(btn.dataset.f,btn));
+    hkDialog.querySelector('#ojh-hkreset').onclick=()=>{
+      cancelHkCapture();
+      settings.hotkey={alt:true,ctrl:false,shift:false,key:'g'};
+      settings.copyHotkey={alt:true,ctrl:false,shift:false,key:'c'};
+      settings.toggleHotkey={alt:true,ctrl:false,shift:false,key:'s'};
+      settings.resetHotkey={alt:true,ctrl:false,shift:true,key:'r'};
+      saveSettings();
+      const fields=['hotkey','copyHotkey','toggleHotkey','resetHotkey'];
+      hkDialog.querySelectorAll('.ojh-hkl').forEach((lab,i)=>{lab.classList.remove('ojh-capturing','ojh-hkerr');lab.textContent=hkLabel(fields[i]||'resetHotkey')});
+      fab.title='OJ 助手 ('+hkText()+')';
+      showToast('快捷键已恢复默认：Alt+G / Alt+C / Alt+S / Alt+Shift+R');
+    };
     setTimeout(()=>document.addEventListener('pointerdown',function h(ev){if(hkDialog&&!hkDialog.contains(ev.target)){closeHkDialog();document.removeEventListener('pointerdown',h,true)}},true),0);
   }
   // ===== 代码偏好弹窗：自定义输出偏好，AI 自主理解并遵守 =====
@@ -1109,6 +1122,22 @@ int main(){
     }
     const thk=settings.toggleHotkey;
     if(thk&&thk.key!=='none'&&combo(e,thk)){e.preventDefault();toggleFab();return}
+    // 按的是默认键、但该动作已被改到别的键：给出提示，避免"按了没反应"
+    if(e.altKey&&!e.ctrlKey&&!e.shiftKey){
+      const k=(e.key||'').toLowerCase();
+      const DEF={g:['hotkey','抓题生成'],c:['copyHotkey','静默复制'],s:['toggleHotkey','显隐悬浮球']};
+      const d=DEF[k];
+      if(d){
+        const cur=settings[d[0]];
+        if(cur&&cur.key!=='none'&&hkTextOf(cur)!==('Alt+'+k.toUpperCase())){
+          const now=Date.now();
+          if(!window.__ojhHintAt||now-window.__ojhHintAt>4000){
+            window.__ojhHintAt=now;
+            showToast('「'+d[1]+'」的快捷键已改成 '+hkTextOf(cur)+'，右键悬浮球 → 快捷键设置 可改回');
+          }
+        }
+      }
+    }
   }
   // document_start 时 content script 就运行，绑在网站脚本之前，stopImmediatePropagation 拦不住
   document.addEventListener('keydown',topDispatch,true);
