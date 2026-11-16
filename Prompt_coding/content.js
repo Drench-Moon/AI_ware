@@ -826,7 +826,7 @@ int main(){
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('toggleHotkey')}</div><div class="ojh-hkd">显示/隐藏悬浮球：按一次隐藏，再按一次显示</div></div><button class="ojh-hkbtn" data-f="toggleHotkey">修改</button></div>
       <div class="ojh-hkrow"><div><div class="ojh-hkl">${hkLabel('resetHotkey')}</div><div class="ojh-hkd">恢复悬浮球与面板的默认位置</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="ojh-hkbtn" data-f="resetHotkey">修改</button><button class="ojh-hkbtn" id="ojh-hknone">设为无</button></div></div>
       <div class="ojh-hkrow" style="border-top:1px solid #e2e8f0"><div><div class="ojh-hkl">恢复默认快捷键</div><div class="ojh-hkd">Alt+G 生成 / Alt+C 静默复制 / Alt+S 显隐 / Alt+Shift+R 复位</div></div><button class="ojh-hkbtn" id="ojh-hkreset">恢复默认</button></div>
-      <div class="ojh-hktip">点「修改」后按键盘组合即可（需含 Ctrl/Alt/Shift 至少一个，Esc 取消）；复位快捷键可「设为无」彻底禁用。生成快捷键与显示/隐藏快捷键互相独立：悬浮球隐藏时生成快捷键仍能生成代码，但不会把悬浮球带出来。</div>`;
+      <div class="ojh-hktip">点「修改」后按键盘组合即可（需含 Ctrl/Alt/Shift 至少一个，Esc 取消）；复位快捷键可「设为无」彻底禁用。生成快捷键与显示/隐藏快捷键互相独立：悬浮球隐藏时生成快捷键仍能生成代码，但不会把悬浮球带出来。<br>若某个键怎么按都没反应，多半被显卡驱动 / 游戏平台 / 输入法做了全局热键（页面根本收不到），换一个组合即可，扩展本身没有问题。</div>`;
     attachOjh(hkDialog);
     placeDialog(hkDialog);makeDraggable(hkDialog);
     hkDialog.querySelector('#ojh-hkclose').onclick=closeHkDialog;
