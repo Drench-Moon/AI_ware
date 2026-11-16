@@ -20,6 +20,8 @@
     // 键位先用默认值同步绑定，保证沙箱 iframe 里 chrome.storage 不可用时快捷键依然生效
     let hk={alt:true,key:'g'}, thk={alt:true,key:'s'}, chk={alt:true,key:'c'}, rhk={alt:true,shift:true,key:'r'};
     const dispatch=(e)=>{
+      if(e.__ojhHandled)return;   // document / window 两处都绑了，同一事件只转发一次
+      e.__ojhHandled=true;
       if(e.repeat)return;
       if(combo(e,hk)){e.preventDefault();e.stopPropagation();topFire('generate')}
       else if(combo(e,chk)){e.preventDefault();e.stopPropagation();topFire('copysilent')}
@@ -1088,6 +1090,8 @@ int main(){
   function matchHotkey(e){return combo(e,settings.hotkey)}
   // 统一键盘事件分发：4 个快捷键用同一套 dispatch，绑到 document 和 window 双保险
   function topDispatch(e){
+    if(e.__ojhHandled)return;         // document / window 两处都绑了，同一事件只处理一次
+    e.__ojhHandled=true;
     if(window.__ojhCapturing)return;   // 正在设置快捷键时不要把按键当成动作
     if(e.repeat)return;
     const rhk=settings.resetHotkey;
