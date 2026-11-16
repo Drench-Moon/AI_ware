@@ -19,66 +19,92 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 /* ===== 扩展更新/重载后自动恢复：免页面刷新，避免打断沉浸刷题计时 =====
    reload 或升级后，已打开页面里的旧 content script 上下文会失效（chrome.* 变成 null），
-   以前只能按 F5 才能恢复。这里在 SW 每次启动时做两件事：
-   1) 对每个已打开的网页发 ping，没人应答说明旧脚本已死 → 清理旧 UI 并重新注入；
-   2) 版本号变化（升级）时对所有页面强制重注入，让新代码立即生效。 */
+   以前只能按 F5 才能恢复。这里做三件事：
+   1) SW 启动：版本变化时对所有页面强制重注入；否则只修补应答不了 ping 的页面；
+   2) 切到某个标签页 / 页面加载完成时再检查一次，脚本死了就立刻补注入；
+   3) 探活必须拿到明确应答才算活，超时一律当死（否则旧脚本会被误判成正常）。 */
+const OJH_VER_KEY = 'ojh_installed_version';
+
+// 该函数会被序列化后注入页面，必须完全自包含
+function ojhCleanPage() {
+  try {
+    document.querySelectorAll('[id^="ojh-"]').forEach(function (el) { el.remove(); });
+    document.querySelectorAll('style').forEach(function (s) {
+      if (s.textContent && s.textContent.indexOf('#ojh-fab') !== -1) s.remove();
+    });
+    delete window.__ojhGuard;
+    delete window.__ojhInjected;
+  } catch (e) {}
+  return true;
+}
+
+// 探活：只有明确收到 {ok:true} 才算活着；超时按死处理
+function ojhAlive(tabId, ms) {
+  return new Promise(function (res) {
+    let done = false;
+    const finish = function (v) { if (!done) { done = true; clearTimeout(timer); res(v); } };
+    const timer = setTimeout(function () { finish(false); }, ms || 900);
+    try {
+      chrome.tabs.sendMessage(tabId, { type: '__ojh_ping' })
+        .then(function (r) { finish(!!(r && r.ok)); })
+        .catch(function () { finish(false); });
+    } catch (_) { finish(false); }
+  });
+}
+
+async function ojhReinject(tabId) {
+  const tries = [
+    { allFrames: true, matchOriginAsFallback: true },
+    { allFrames: true },
+    {},
+  ];
+  for (const opt of tries) {
+    try {
+      const target = Object.assign({ tabId: tabId }, opt);
+      await chrome.scripting.executeScript({ target: target, func: ojhCleanPage });
+      await chrome.scripting.executeScript({ target: target, files: ['content.js'] });
+      return true;   // 注入成功，不用再降级重试
+    } catch (e) { /* 换下一组参数重试 */ }
+  }
+  return false;
+}
+
+async function ojhEnsureTab(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab || !/^https?:/i.test(tab.url || '')) return;
+    if (await ojhAlive(tabId, 900)) return;
+    await ojhReinject(tabId);
+  } catch (_) { /* 标签页已关闭或不可访问，忽略 */ }
+}
+
 (async () => {
   try {
-    const VER_KEY = 'ojh_installed_version';
     const cur = chrome.runtime.getManifest().version;
-    const got = await chrome.storage.local.get(VER_KEY);
-    const upgraded = !!got[VER_KEY] && got[VER_KEY] !== cur;
-    await chrome.storage.local.set({ [VER_KEY]: cur });
-
-    // 该函数会被序列化后注入页面，必须完全自包含
-    const clean = function () {
-      try {
-        document.querySelectorAll('[id^="ojh-"]').forEach(function (el) { el.remove(); });
-        document.querySelectorAll('style').forEach(function (s) {
-          if (s.textContent && s.textContent.indexOf('#ojh-fab') !== -1) s.remove();
-        });
-        delete window.__ojhGuard;
-        delete window.__ojhInjected;
-      } catch (e) {}
-      return true;
-    };
-
-    // 探活：能应答说明该页面的 content script 还能用
-    function alive(tabId) {
-      return Promise.race([
-        chrome.tabs.sendMessage(tabId, { type: '__ojh_ping' })
-          .then(function (r) { return !!(r && r.ok); })
-          .catch(function () { return false; }),
-        new Promise(function (res) { setTimeout(function () { res(true); }, 2000); }),
-      ]);
-    }
-
-    async function reinject(tabId) {
-      const tries = [
-        { allFrames: true, matchOriginAsFallback: true },
-        { allFrames: true },
-        {},
-      ];
-      for (const opt of tries) {
-        try {
-          const target = Object.assign({ tabId: tabId }, opt);
-          await chrome.scripting.executeScript({ target: target, func: clean });
-          await chrome.scripting.executeScript({ target: target, files: ['content.js'] });
-          return true;   // 注入成功，不用再降级重试
-        } catch (e) { /* 换下一组参数重试 */ }
-      }
-      return false;
-    }
+    const got = await chrome.storage.local.get(OJH_VER_KEY);
+    const upgraded = !!got[OJH_VER_KEY] && got[OJH_VER_KEY] !== cur;
+    await chrome.storage.local.set({ [OJH_VER_KEY]: cur });
 
     const tabs = await chrome.tabs.query({});
     for (const t of tabs) {
       if (!t || typeof t.id !== 'number') continue;
       if (t.url && !/^https?:/i.test(t.url)) continue;   // 跳过 chrome:// / edge:// 等
-      if (!upgraded && await alive(t.id)) continue;      // 旧脚本还活着就不动它
-      await reinject(t.id);
+      if (!upgraded && await ojhAlive(t.id, 900)) continue;   // 旧脚本还活着就不动它
+      await ojhReinject(t.id);
     }
   } catch (_) {}
 })();
+
+// 切标签页 / 页面加载完成时再兜一次：旧页面被重新激活时脚本若已失效，立刻补注入
+chrome.tabs.onActivated.addListener(function (info) {
+  if (!info || typeof info.tabId !== 'number') return;
+  setTimeout(function () { ojhEnsureTab(info.tabId); }, 250);
+});
+chrome.tabs.onUpdated.addListener(function (tabId, change) {
+  if (!change || change.status !== 'complete') return;
+  setTimeout(function () { ojhEnsureTab(tabId); }, 400);
+});
+
 
 /* ===== 新版本检查（对比 GitHub 仓库里的 manifest.json）===== */
 const UPDATE_KEY = 'ojh_update_info';
